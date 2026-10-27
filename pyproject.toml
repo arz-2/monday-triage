@@ -1,0 +1,66 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "monday-triage"
+version = "0.1.0"
+description = "A Monday-morning digest of what changed in a GitHub repo's issues."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+# `langchain` provides init_chat_model, which builds a chat model for any
+# provider LangChain supports. Anthropic ships by default; other providers
+# need their integration package (see the extras below, or pip install it).
+dependencies = [
+    "langchain>=0.3",
+    "langchain-core>=0.3",
+    "langchain-anthropic>=0.3",
+    "pydantic>=2.7",
+    "python-dotenv>=1.0",
+    "requests>=2.31",
+]
+
+[project.optional-dependencies]
+openai = ["langchain-openai>=0.3"]
+google = ["langchain-google-genai>=2.0"]
+mistral = ["langchain-mistralai>=0.2"]
+ollama = ["langchain-ollama>=0.2"]
+groq = ["langchain-groq>=0.2"]
+bedrock = ["langchain-aws>=0.2"]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[project.scripts]
+monday-triage = "monday_triage.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/monday_triage"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+# Google Python Style Guide: 80-column lines, Google docstrings, sorted imports.
+[tool.ruff]
+line-length = 80
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "D",   # pydocstyle
+    "B",   # bugbear
+    "UP",  # pyupgrade
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D"]

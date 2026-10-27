@@ -1,0 +1,26 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Tool state (last-run snapshots)
+.monday_triage/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# Tool caches
+.pytest_cache/
+.ruff_cache/
+
+# OS
+.DS_Store
+
+# Assignment brief (not part of the submission)
+project.txt

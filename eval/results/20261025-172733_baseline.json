@@ -1,0 +1,788 @@
+{
+  "name": "baseline",
+  "model": "claude-haiku-5-5",
+  "prompt_file": "src/monday_triage/prompts/thread_state.md",
+  "repeats": 3,
+  "report": {
+    "accuracy_per_run": [
+      0.08695652173913043,
+      0.17391304347826086,
+      0.17391304347826086
+    ],
+    "accuracy_mean": 0.14492753623188406,
+    "coverage_per_run": [
+      0.5217391304347826,
+      0.5217391304347826,
+      0.5652173913043478
+    ],
+    "cost_usd_total": 0.0309648,
+    "confusion": [
+      {
+        "expected": "waiting_on_maintainer",
+        "model": "fix_in_progress",
+        "count": 41
+      },
+      {
+        "expected": "waiting_on_maintainer",
+        "model": "needs_triage",
+        "count": 13
+      },
+      {
+        "expected": "resolved",
+        "model": "needs_triage",
+        "count": 2
+      },
+      {
+        "expected": "resolved",
+        "model": "waiting_on_maintainer",
+        "count": 2
+      },
+      {
+        "expected": "resolved",
+        "model": "fix_in_progress",
+        "count": 1
+      }
+    ],
+    "disagreements": [
+      {
+        "number": 6819,
+        "state": "open",
+        "expected": "waiting_on_maintainer",
+        "model": {
+          "fix_in_progress": 3
+        }
+      },
+      {
+        "number": 6865,
+        "state": "open",
+        "expected": "waiting_on_maintainer",
+        "model": {
+          "fix_in_progress": 3
+        }
+      },
+      {
+        "number": 6948,
+        "state": "open",
+        "expected": "waiting_on_maintainer",
+        "model": {
+          "fix_in_progress": 3
+        }
+      },
+      {
+        "number": 7088,
+        "state": "open",
+        "expected": "waiting_on_maintainer",
+        "model": {
+          "fix_in_progress": 3
+        }
+      },
+      {
+        "number": 7290,
+        "state": "open",
+        "expected": "waiting_on_maintainer",
+        "model": {
+          "fix_in_progress": 3
+        }
+      },
+      {
+        "number": 7390,
+        "state": "open",
+        "expected": "waiting_on_maintainer",
+        "model": {
+          "fix_in_progress": 3
+        }
+      },
+      {
+        "number": 7444,
+        "state": "open",
+        "expected": "waiting_on_maintainer",
+        "model": {
+          "fix_in_progress": 3
+        }
+      },
+      {
+        "number": 8242,
+        "state": "open",
+        "expected": "resolved",
+        "model": {
+          "needs_triage": 1,
+          "waiting_on_maintainer": 2
+        }
+      },
+      {
+        "number": 8617,
+        "state": "open",
+        "expected": "waiting_on_maintainer",
+        "model": {
+          "fix_in_progress": 3
+        }
+      },
+      {
+        "number": 8681,
+        "state": "open",
+        "expected": "waiting_on_maintainer",
+        "model": {
+          "needs_triage": 3
+        }
+      },
+      {
+        "number": 8709,
+        "state": "open",
+        "expected": "waiting_on_maintainer",
+        "model": {
+          "fix_in_progress": 3
+        }
+      },
+      {
+        "number": 8713,
+        "state": "open",
+        "expected": "waiting_on_maintainer",
+        "model": {
+          "needs_triage": 3
+        }
+      },
+      {
+        "number": 8719,
+        "state": "open",
+        "expected": "waiting_on_maintainer",
+        "model": {
+          "fix_in_progress": 3
+        }
+      },
+      {
+        "number": 8743,
+        "state": "open",
+        "expected": "waiting_on_maintainer",
+        "model": {
+          "fix_in_progress": 3
+        }
+      },
+      {
+        "number": 8799,
+        "state": "closed",
+        "expected": "resolved",
+        "model": {
+          "fix_in_progress": 1,
+          "resolved": 2
+        }
+      },
+      {
+        "number": 8830,
+        "state": "open",
+        "expected": "waiting_on_maintainer",
+        "model": {
+          "fix_in_progress": 3
+        }
+      },
+      {
+        "number": 8849,
+        "state": "open",
+        "expected": "waiting_on_maintainer",
+        "model": {
+          "needs_triage": 3
+        }
+      },
+      {
+        "number": 8859,
+        "state": "closed",
+        "expected": "resolved",
+        "model": {
+          "needs_triage": 1,
+          "resolved": 2
+        }
+      },
+      {
+        "number": 8863,
+        "state": "open",
+        "expected": "waiting_on_maintainer",
+        "model": {
+          "needs_triage": 3
+        }
+      },
+      {
+        "number": 8877,
+        "state": "open",
+        "expected": "waiting_on_maintainer",
+        "model": {
+          "needs_triage": 1,
+          "fix_in_progress": 2
+        }
+      },
+      {
+        "number": 8888,
+        "state": "open",
+        "expected": "waiting_on_maintainer",
+        "model": {
+          "fix_in_progress": 3
+        }
+      }
+    ]
+  },
+  "runs": [
+    {
+      "statuses": {
+        "7290": "fix_in_progress",
+        "8743": "fix_in_progress",
+        "8877": "needs_triage",
+        "8888": "fix_in_progress",
+        "8859": "needs_triage",
+        "8863": "needs_triage",
+        "7222": "waiting_on_maintainer",
+        "8799": "fix_in_progress",
+        "8849": "needs_triage",
+        "5225": "waiting_on_maintainer",
+        "8242": "needs_triage",
+        "8681": "needs_triage",
+        "8617": "fix_in_progress",
+        "8713": "needs_triage",
+        "8719": "fix_in_progress",
+        "7390": "fix_in_progress",
+        "8709": "fix_in_progress",
+        "6948": "fix_in_progress",
+        "8830": "fix_in_progress",
+        "7088": "fix_in_progress",
+        "6865": "fix_in_progress",
+        "7444": "fix_in_progress",
+        "6819": "fix_in_progress"
+      },
+      "summaries": {
+        "7290": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The slowdown with num_proc>1 has been reported since 2024 with no maintainer reply. A contributor (@hzmsh) says the cause is that each worker receives the full table, and no PR is linked yet.",
+          "what_changed": "@hzmsh posted the analysis and measurements, said they will open a PR, and self-assigned the issue."
+        },
+        "8743": {
+          "status": "fix_in_progress",
+          "where_it_stands": "No maintainer has replied. Pull requests #8744 and #8775 are said to cover the same writer-cleanup path, and a further alternative, #8885, is open for review. Whether any of them is complete is not stated.",
+          "what_changed": "@wpyaoxueros self-assigned, then withdrew and asked a maintainer to unassign them, citing #8744 and #8775. They then submitted #8885 as an alternative. No maintainer responded."
+        },
+        "8877": {
+          "status": "needs_triage",
+          "where_it_stands": "No maintainer has replied yet. The reporter offers a targeted fix and coordination with PR #8752, but no fix PR is linked.",
+          "what_changed": "The reporter opened the issue with a reproduction and a likely cause, then self-assigned it in a comment."
+        },
+        "8888": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The bug is open: fixed-shape ArrayXD pandas round trips lose null rows and integer precision. PR #8889 is linked and proposes a fix, but the thread records no merge or maintainer review.",
+          "what_changed": "The issue was filed, and @choksi2212 (not a maintainer) said they would work on it, then opened PR #8889 for the fixed-shape path. They noted that concatenation via pd.concat still fails and deferred that to #8867."
+        },
+        "8859": {
+          "status": "needs_triage",
+          "where_it_stands": "No maintainer has replied. The reporter offered to contribute a fix and self-assigned, but the thread does not say why the issue is marked closed.",
+          "what_changed": "The reporter opened the issue and self-assigned it on 2026-10-20. No maintainer has commented."
+        },
+        "8863": {
+          "status": "needs_triage",
+          "where_it_stands": "The issue is open with no maintainer reply yet. The reporter says decode(False) after shard() still returns decoded images because shard_data_sources does not copy decoding_pool.",
+          "what_changed": "No new comments."
+        },
+        "7222": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Issue #7222 is open and no fix PR is linked. A contributor proposed a single-pass fix and a maintainer previously pointed to explicit features as the workaround.",
+          "what_changed": "hzmsh proposed a fix that widens null columns across shards and asked for approval; lhoestq replied that the error hint should also cover this case."
+        },
+        "8799": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The reporter (not a maintainer) says a fix with tests is ready and will be opened as a PR, and self-assigned the issue. No PR is linked, and the thread doesn't say why the issue is closed.",
+          "what_changed": "No new comments."
+        },
+        "8849": {
+          "status": "needs_triage",
+          "where_it_stands": "Issue #8849 is open with no replies from any maintainer or other users. The reporter describes a bug where cast_column and cast on streaming datasets decoded in threads (num_threads) ignore the new features: audio is not resampled and Image(decode=False) still yields decoded images. The reporter also suggests a root cause and a fix direction, but no fix or PR is linked.",
+          "what_changed": "No new comments."
+        },
+        "5225": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The issue is open with no linked PR or commit. Maintainers last commented in December 2022, and two users (@LeonxLJX) claimed the work in September 2026 without a maintainer response.",
+          "what_changed": "@sharmis-tp offered to help on 2026-10-22, said recent releases appear to include a Video feature (not verified in the thread), and asked whether the issue is still open or can be closed."
+        },
+        "8242": {
+          "status": "needs_triage",
+          "where_it_stands": "No maintainer has replied. A non-maintainer commenter says the issue belongs in axolotl and suggests setting `diffusion.generate_samples: false`, since the diffusion plugin's sample generation runs on the train dataloader. The reporter hasn't confirmed whether that fixes it.",
+          "what_changed": "No new comments."
+        },
+        "8681": {
+          "status": "needs_triage",
+          "where_it_stands": "Open issue with no maintainer reply. The reporter says ClassLabel casting fails for large_string and string_view columns, which breaks Dataset.from_pandas with string labels on pandas 3, and offers to open a PR.",
+          "what_changed": "No new comments."
+        },
+        "8617": {
+          "status": "fix_in_progress",
+          "where_it_stands": "Issue #8617 is open. A contributor (@NAVEEN10032004K) said on 2026-09-24 they will fix the `dataset_name` lookup and add tests, but no pull request is linked yet.",
+          "what_changed": "No new comments."
+        },
+        "8713": {
+          "status": "needs_triage",
+          "where_it_stands": "The reporter proposed a fix limited to the inferred-Json path and asked whether maintainers want a PR, with the `.map()` re-encoding case left open. A contributor (@Samikshakadge-21) asked on 2026-10-08 to take the work, and no maintainer has replied.",
+          "what_changed": "No new comments."
+        },
+        "8719": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The reporter found that arrow-backed `concatenate_datasets(axis=1)` crashes on unequal lengths and proposed a null-padding fix. No maintainer has replied, and a contributor commented \"#self-assign\" on the issue.",
+          "what_changed": "No new comments."
+        },
+        "7390": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The issue asks to re-add py.typed for PEP 561 compliance; a contributor self-assigned it, but no linked PR or commit is mentioned yet.",
+          "what_changed": "@jinchuntan (CONTRIBUTOR) self-assigned the issue on 2026-10-18."
+        },
+        "8709": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The bug still reproduces on main, and a candidate fix is proposed. PR #8848 is open with that change and tests, and #8710 was closed unmerged.",
+          "what_changed": "@mertkayacs confirmed the bug on main, traced its cause to the positional groups() read, and opened PR #8848 after #8710 was closed without merging."
+        },
+        "6948": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The reporter described a multi-worker to_tf_dataset crash where TensorFlow raises \"Visible devices cannot be modified after being initialized\" in worker processes. No maintainer has replied, and no PR is linked.",
+          "what_changed": "A contributor, @jinchuntan, commented \"#self-assign\", indicating they are taking the issue."
+        },
+        "8830": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The bug is open and the reporter links PR #8833 as fixing the Categorical (dictionary) case. The thread does not say whether that PR is merged or finished.",
+          "what_changed": "The reporter linked related issue #8681 and PR #8688, which cover the large_string and string_view cases, and said #8833 fixes this Categorical shape. No maintainer has replied."
+        },
+        "7088": {
+          "status": "fix_in_progress",
+          "where_it_stands": "Open since 2024-08-05: with_format(\"torch\") triggers a UserWarning from torch.tensor() when values are already tensors. The reporter proposed a fix in TorchFormatter._tensorize. No linked PR, and no maintainer has replied.",
+          "what_changed": "A contributor, @jinchuntan, commented \"#self-assign\" on 2026-10-18, claiming the issue."
+        },
+        "6865": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The reporter says the semantic segmentation docs example uses torchvision transforms that bilinearly interpolate masks, producing wrong boundary colors. A contributor has self-assigned the issue, but no linked PR or fix is shown.",
+          "what_changed": "@jinchuntan self-assigned the issue on 2026-10-18."
+        },
+        "7444": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The issue reports excessive shuffle-buffer warnings when resuming an IterableDataset with buffered shuffle and DDP, plus a loss jump after checkpoint load. No maintainer has replied, and a contributor has self-assigned the issue.",
+          "what_changed": "CONTRIBUTOR @jinchuntan posted \"#self-assign\" on 2026-10-18."
+        },
+        "6819": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The contributor jinchuntan says they reproduced the error and are working on adding the config name to it. No pull request is linked yet, and no maintainer has replied.",
+          "what_changed": "jinchuntan reproduced the issue on main and said they will add the config name to the error, then self-assigned the issue twice."
+        }
+      },
+      "themes": [
+        {
+          "name": "Streaming decode and cast",
+          "description": "Streaming and IterableDataset issues where cast_column, decode settings, or shard and resume behavior do not take effect as expected.",
+          "issues": [
+            8863,
+            8849,
+            7444
+          ]
+        },
+        {
+          "name": "concatenate_datasets",
+          "description": "Bugs in concatenate_datasets involving cache reuse, split handling, and unequal-length axis=1 concatenation.",
+          "issues": [
+            8859,
+            8799,
+            8719
+          ]
+        },
+        {
+          "name": "Type casting and inference",
+          "description": "Casting and type-inference failures for ClassLabel, string-to-null, and JSON column types.",
+          "issues": [
+            8681,
+            8830,
+            7222,
+            8713
+          ]
+        },
+        {
+          "name": "Tensor framework integration",
+          "description": "Problems when converting datasets to torch or TensorFlow formats, including spurious warnings and multi-worker device errors.",
+          "issues": [
+            7088,
+            6948
+          ]
+        }
+      ],
+      "themes_dropped": [],
+      "coverage": 0.5217391304347826,
+      "cost_usd": 0.010265799999999999,
+      "calls": 24
+    },
+    {
+      "statuses": {
+        "8888": "fix_in_progress",
+        "8743": "fix_in_progress",
+        "7290": "fix_in_progress",
+        "8877": "fix_in_progress",
+        "8859": "resolved",
+        "8863": "needs_triage",
+        "7222": "waiting_on_maintainer",
+        "8799": "resolved",
+        "5225": "waiting_on_maintainer",
+        "8849": "needs_triage",
+        "8242": "waiting_on_maintainer",
+        "8719": "fix_in_progress",
+        "8681": "needs_triage",
+        "8713": "needs_triage",
+        "8617": "fix_in_progress",
+        "8830": "fix_in_progress",
+        "8709": "fix_in_progress",
+        "6948": "fix_in_progress",
+        "7390": "fix_in_progress",
+        "6865": "fix_in_progress",
+        "7088": "fix_in_progress",
+        "7444": "fix_in_progress",
+        "6819": "fix_in_progress"
+      },
+      "summaries": {
+        "8888": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The fixed-shape ArrayXD pandas round trip loses null rows and integer precision. A fix is linked as PR #8889, opened by a non-maintainer contributor, and is not yet reviewed or merged.",
+          "what_changed": "The contributor announced a fix (comment 1), then opened #8889, which they say preserves row nulls and exact integer payloads for fixed-shape columns. They say pandas concatenation still fails on both main and the fix, and they deferred that to #8867."
+        },
+        "8743": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The reporter proposes wrapping the writer in try/finally. The thread says PRs #8744 and #8775 cover the same path, and #8885 is offered as an alternative. No maintainer has commented, and the thread does not say whether any of these PRs are finished.",
+          "what_changed": "wpyaoxueros self-assigned, then withdrew because of #8744 and #8775 and asked a maintainer to unassign them. They then submitted #8885 as an alternative with regression tests. No maintainer commented."
+        },
+        "7290": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The issue is open with no maintainer reply. A contributor (hzmsh) has diagnosed the cause and said they will open a PR, and has self-assigned the issue; no PR is linked yet.",
+          "what_changed": "hzmsh explained that each shard pickles its full parent Arrow buffers, sending the whole table to every worker, and reported measurements with and without a proposed fix. They then self-assigned the issue."
+        },
+        "8877": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The reporter says they can fix the cache-key bug and self-assigned the issue, but no PR is linked and no maintainer has replied yet. The related PR #8752 changes the same method but does not address bound values.",
+          "what_changed": "The reporter self-assigned the issue (comment by @gorkadabo1)."
+        },
+        "8859": {
+          "status": "resolved",
+          "where_it_stands": "The issue is closed, but the thread does not say why (fix, duplicate, or other). No maintainer has commented.",
+          "what_changed": "The reporter opened the issue on 2026-10-20 and then commented \"#self-assign\". The issue was closed this week, but no closing comment appears in the thread."
+        },
+        "8863": {
+          "status": "needs_triage",
+          "where_it_stands": "The issue is open with no maintainer reply yet; the reporter says decode(False) after shard() still returns decoded images because shard_data_sources drops decoding_pool.",
+          "what_changed": "No new comments."
+        },
+        "7222": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The issue is open with no linked PR. Contributor hzmsh proposed a single-pass fix, and maintainer lhoestq replied to extend the error-message hint to cover this case, so the hint work is agreed while the broader fix is not.",
+          "what_changed": "hzmsh posted a detailed analysis and proposal for a shard-widening fix, and lhoestq replied that the hint in the error message should include this case."
+        },
+        "8799": {
+          "status": "resolved",
+          "where_it_stands": "The issue is closed. The reporter self-assigned and said they had a fix with tests ready, but the thread links no pull request.",
+          "what_changed": "The issue was closed this week. No new comments."
+        },
+        "5225": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Open feature request from 2022 with no maintainer reply in the thread. Two non-maintainer users (LeonxLJX) claimed the work in 2026, but no PR is linked. The thread does not confirm whether a Video feature already exists.",
+          "what_changed": "@sharmis-tp (NONE) asked whether the issue can be closed, saying recent releases appear to ship a Video feature. No maintainer has responded to this question."
+        },
+        "8849": {
+          "status": "needs_triage",
+          "where_it_stands": "Issue #8849 is open with no replies from any maintainer. The reporter says cast_column and cast are ignored on streaming datasets when decoding runs in threads (decode(num_threads=...)), so audio resampling and decode=False casts have no effect. The reporter also points to a suspected cause in the decoding map step and the way cast builds on it.",
+          "what_changed": "No new comments."
+        },
+        "8242": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "No maintainer has replied. A non-maintainer commenter says this belongs in the axolotl repo, not datasets, and suggests setting diffusion.generate_samples to false, which the reporter has not confirmed.",
+          "what_changed": "No new comments."
+        },
+        "8719": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The bug is open: arrow-backed horizontal concatenation fails on unequal lengths, while the Python path pads with None. @felipebridge self-assigned the issue, and the reporter offered a fix, but no PR is linked yet.",
+          "what_changed": "No new comments."
+        },
+        "8681": {
+          "status": "needs_triage",
+          "where_it_stands": "Opened 2026-09-24 by @lucaluo925: ClassLabel.cast_storage only maps string labels for pa.StringArray, so large_string and string_view columns fail with ArrowInvalid when cast to ClassLabel or passed via Dataset.from_pandas under pandas 3. The reporter offered to open a PR. No maintainer has replied yet.",
+          "what_changed": "No new comments."
+        },
+        "8713": {
+          "status": "needs_triage",
+          "where_it_stands": "The reporter proposed a scoped fix limited to the inferred Json path and asked whether to open a PR, and no maintainer has replied. A non-maintainer (@Samikshakadge-21) asked to work on it, but no PR is linked.",
+          "what_changed": "No new comments."
+        },
+        "8617": {
+          "status": "fix_in_progress",
+          "where_it_stands": "`SplitDict.copy()` and `from_split_dict` crash on `SplitInfo` entries when `dataset_name` is unset. A contributor (not a maintainer) said on 2026-09-24 they will open a PR, but none is linked yet and no maintainer has replied.",
+          "what_changed": "No new comments."
+        },
+        "8830": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The Categorical/dictionary-encoded case is reported to be fixed in #8833, which is not confirmed as merged in the thread. The plain-string side is tracked separately in #8681 with the fix in #8688.",
+          "what_changed": "The reporter linked #8681 and #8688 as related, and noted that #8833 fixes the Categorical shape while #8688 fixes the large_string and string_view shape."
+        },
+        "8709": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The issue is open and a fix is proposed in PR #8848, which includes a parametrized test. No maintainer has reviewed or merged it yet.",
+          "what_changed": "A commenter confirmed the bug on current main (18378f732), traced the cause to positional group reading, and opened #8848 after #8710 was closed unmerged."
+        },
+        "6948": {
+          "status": "fix_in_progress",
+          "where_it_stands": "Open bug from June 2024 where to_tf_dataset with num_workers > 0 fails in worker processes with a visible-devices RuntimeError. No maintainer has replied and no PR is linked.",
+          "what_changed": "Contributor @jinchuntan commented \"#self-assign\" on 2026-10-18, claiming the issue."
+        },
+        "7390": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The reporter asked in February 2025 to re-add py.typed, and no maintainer has replied. A commenter pointed to a similar transformers fix.",
+          "what_changed": "A contributor (jinchuntan) commented \"#self-assign\" on 2026-10-18, claiming the issue."
+        },
+        "6865": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The reporter says the semantic segmentation docs example uses torchvision transforms that bilinearly interpolate masks, producing wrong boundary colors. A contributor has self-assigned the issue, but no linked PR or fix is mentioned.",
+          "what_changed": "@jinchuntan (CONTRIBUTOR) self-assigned the issue on 2026-10-18."
+        },
+        "7088": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The reporter flagged a UserWarning from torch.tensor() when with_format('torch') passes tensors through TorchFormatter._tensorize and proposed a clone().detach() fix. A contributor has self-assigned the issue, and no pull request is linked.",
+          "what_changed": "jinchuntan (CONTRIBUTOR) posted \"#self-assign\" on 2026-10-18."
+        },
+        "7444": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The issue is open and no maintainer has replied. The reporter describes repeated shuffle-buffer warnings when resuming mid-epoch with DDP, plus a loss jump after loading a checkpoint.",
+          "what_changed": "A contributor, @jinchuntan, commented \"#self-assign\" on 2026-10-18, which suggests they are taking the issue."
+        },
+        "6819": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The issue asks that the DataFilesNotFoundError name the first configuration with missing files. A contributor, jinchuntan, has self-assigned it and said they will add the config name to the error. No PR is linked yet.",
+          "what_changed": "jinchuntan reproduced the problem on main, said they will add the config name to the error, and self-assigned the issue twice."
+        }
+      },
+      "themes": [
+        {
+          "name": "concatenate_datasets behavior",
+          "description": "Bugs in concatenate_datasets across axes, splits, and caching, where the result is wrong or crashes.",
+          "issues": [
+            8859,
+            8799,
+            8719
+          ]
+        },
+        {
+          "name": "Type casting and string-to-type conversion",
+          "description": "Casts to ClassLabel, null, or inferred JSON types that mishandle string-typed Arrow data or values such as \"123\" and \"null\".",
+          "issues": [
+            8681,
+            8830,
+            7222,
+            8713
+          ]
+        },
+        {
+          "name": "Streaming decode and cast",
+          "description": "Streaming or iterable datasets ignore decode or cast settings, so media decoding and casts have no effect.",
+          "issues": [
+            8863,
+            8849
+          ]
+        },
+        {
+          "name": "Multiprocessing and distributed loading",
+          "description": "Hangs, device errors, and warnings when datasets run with multiple workers, processes, or DDP ranks.",
+          "issues": [
+            7290,
+            6948,
+            7444
+          ]
+        }
+      ],
+      "themes_dropped": [],
+      "coverage": 0.5217391304347826,
+      "cost_usd": 0.010171900000000001,
+      "calls": 24
+    },
+    {
+      "statuses": {
+        "7290": "fix_in_progress",
+        "8888": "fix_in_progress",
+        "8859": "resolved",
+        "8743": "fix_in_progress",
+        "8877": "fix_in_progress",
+        "8799": "resolved",
+        "8863": "needs_triage",
+        "5225": "waiting_on_maintainer",
+        "7222": "waiting_on_maintainer",
+        "8242": "waiting_on_maintainer",
+        "8849": "needs_triage",
+        "8713": "needs_triage",
+        "8719": "fix_in_progress",
+        "8617": "fix_in_progress",
+        "8681": "needs_triage",
+        "8709": "fix_in_progress",
+        "6948": "fix_in_progress",
+        "7390": "fix_in_progress",
+        "8830": "fix_in_progress",
+        "7088": "fix_in_progress",
+        "6865": "fix_in_progress",
+        "6819": "fix_in_progress",
+        "7444": "fix_in_progress"
+      },
+      "summaries": {
+        "7290": {
+          "status": "fix_in_progress",
+          "where_it_stands": "Multiprocessing `save_to_disk` is slower than single-process saving; a contributor identified the cause as sending the whole table to each worker and said they will open a PR. No PR is linked yet.",
+          "what_changed": "A contributor explained the cause, reported benchmark results for a fix, said they will open a PR, and self-assigned the issue. No maintainer has replied."
+        },
+        "8888": {
+          "status": "fix_in_progress",
+          "where_it_stands": "Issue #8888 is open. A fix for the fixed-shape pandas path is in PR #8889, opened by @choksi2212 and not yet merged, and the PR author reports that pd.concat still fails there, deferring that to #8867.",
+          "what_changed": "@choksi2212 said they were working on a masked-representation fix, then opened PR #8889, which keeps row nulls and exact integer payloads for the fixed-shape pandas round trip. No maintainer has replied yet."
+        },
+        "8859": {
+          "status": "resolved",
+          "where_it_stands": "The issue is closed, but the thread does not say why. No maintainer replied and no fix or pull request is linked.",
+          "what_changed": "The reporter opened the issue and then commented \"#self-assign\". The issue was closed this week, but the thread does not show who closed it or why."
+        },
+        "8743": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The issue is open and no maintainer has commented. Pull requests #8744 and #8775 are said to cover the same writer-cleanup path, and the thread does not say whether either is merged.",
+          "what_changed": "The reporter-side commenter @wpyaoxueros self-assigned the issue, then withdrew and asked a maintainer to unassign them. They then submitted #8885 as an alternative context-manager fix for maintainer consideration."
+        },
+        "8877": {
+          "status": "fix_in_progress",
+          "where_it_stands": "Open bug report with no maintainer reply yet. The reporter offered a targeted fix and self-assigned the issue, and notes it may overlap with PR #8752.",
+          "what_changed": "The reporter opened the issue on 2026-10-22 and self-assigned it in a comment the same day."
+        },
+        "8799": {
+          "status": "resolved",
+          "where_it_stands": "The issue is closed, but the thread doesn't say why. The reporter said they would open a PR with a fix, and none is linked in the thread.",
+          "what_changed": "No new comments."
+        },
+        "8863": {
+          "status": "needs_triage",
+          "where_it_stands": "The issue is open with no replies from any maintainer yet. The reporter says decode(False) after shard() still returns decoded images because decoding_pool is not copied during shard_data_sources.",
+          "what_changed": "No new comments."
+        },
+        "5225": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The issue is open with no linked PR or commit. The last maintainer comments date from 2022, and the thread has since had unanswered claims to take it on.",
+          "what_changed": "sharmis-tp (NONE) said recent releases appear to ship a Video feature and asked whether anything here is still open or the issue can be closed."
+        },
+        "7222": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The issue is open with no linked fix; the reporter's bug is that a column that is all-null in the first chunk gets locked as null, so later string values fail to cast. The contributor proposed a fix, and a maintainer chose a narrower route.",
+          "what_changed": "hzmsh (CONTRIBUTOR) proposed a single-pass fix that widens the null column into a new shard, and asked for approval first. lhoestq (MEMBER) replied that this case should be included in the error-message hint instead, so the proposed fix itself was not endorsed."
+        },
+        "8242": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The issue is open and no maintainer has replied. A non-maintainer commenter says it belongs in the axolotl repo and that the hang comes from the diffusion plugin's sample generation, suggesting `generate_samples: false`.",
+          "what_changed": "No new comments."
+        },
+        "8849": {
+          "status": "needs_triage",
+          "where_it_stands": "Issue #8849 is open with no replies from any maintainer. The reporter says cast_column and cast ignore the decoding features when a streaming dataset is decoded in threads, so audio sampling_rate and decode=False casts have no effect, and gives a root cause and reproduction.",
+          "what_changed": "No new comments."
+        },
+        "8713": {
+          "status": "needs_triage",
+          "where_it_stands": "No maintainer has replied. The reporter proposed a scoped fix that changes only the inferred Json path and asked whether to open a PR. A contributor, @Samikshakadge-21, has offered to implement it and asked if it is still available.",
+          "what_changed": "No new comments."
+        },
+        "8719": {
+          "status": "fix_in_progress",
+          "where_it_stands": "Issue is open and unfixed: iterable `concatenate_datasets(axis=1)` raises `ArrowInvalid` on arrow-backed sources of unequal length. @felipebridge self-assigned it on 2026-10-01, and no PR is linked yet. No maintainer has replied.",
+          "what_changed": "No new comments."
+        },
+        "8617": {
+          "status": "fix_in_progress",
+          "where_it_stands": "Issue is open: `SplitDict.from_split_dict()` calls `.get()` on `SplitInfo` objects when `dataset_name` is unset. @NAVEEN10032004K said on 2026-09-24 they would fix it and open a PR, but no PR is linked yet.",
+          "what_changed": "No new comments."
+        },
+        "8681": {
+          "status": "needs_triage",
+          "where_it_stands": "Issue #8681 is open with no maintainer reply yet. The reporter describes ClassLabel.cast_storage skipping label-to-id mapping for large_string and string_view storage, which breaks Dataset.from_pandas with pandas 3 string columns, and offers to open a PR.",
+          "what_changed": "No new comments."
+        },
+        "8709": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The bug still reproduces on current main, and a fix is in progress: PR #8848 applies the proposed change with tests. #8710 was closed without merging, and charan-rathore self-assigned the issue on 2026-09-29.",
+          "what_changed": "On 2026-10-18 mertkayacs confirmed the bug on main and opened PR #8848 with the fix and parametrized tests, after #8710 was closed unmerged."
+        },
+        "6948": {
+          "status": "fix_in_progress",
+          "where_it_stands": "No maintainer has replied and no pull request is linked. A contributor has claimed the issue, but no fix is shown as finished.",
+          "what_changed": "@jinchuntan (CONTRIBUTOR) self-assigned the issue on 2026-10-18."
+        },
+        "7390": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The issue asks to re-add py.typed for PEP 561 compliance. No pull request is linked, and the only claim is a self-assign from a contributor.",
+          "what_changed": "A contributor, @jinchuntan, posted \"#self-assign\" on 2026-10-18. No other comments."
+        },
+        "8830": {
+          "status": "fix_in_progress",
+          "where_it_stands": "No maintainer has replied. The reporter links PR #8833 as fixing this dictionary-encoded Categorical case, but the thread does not say whether that PR is merged or reviewed.",
+          "what_changed": "The reporter commented that related issue #8681 has a plain-string variant fixed by #8688, and that #8833 covers the Categorical case. Both shapes currently fail on main."
+        },
+        "7088": {
+          "status": "fix_in_progress",
+          "where_it_stands": "Open since 2024-08-05. The reporter found that wrapping a torch.Tensor in torch.tensor() triggers a UserWarning in TorchFormatter._tensorize and proposed a fix. No maintainer has replied and no pull request is linked.",
+          "what_changed": "A contributor, @jinchuntan, commented \"#self-assign\" on 2026-10-18, which claims the issue. No maintainer has responded."
+        },
+        "6865": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The reporter says the Hugging Face semantic segmentation docs use torchvision transforms that bilinearly interpolate masks, producing wrong boundary colors; the suggested fix is torchvision v2 with tv_tensors.Mask or another approach. No maintainer has responded and no PR is linked.",
+          "what_changed": "@jinchuntan (CONTRIBUTOR) commented \"#self-assign\" on 2026-10-18, indicating they are taking the issue."
+        },
+        "6819": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The issue asks that the DataFilesNotFoundError name the first config with missing files. No PR is linked yet, but a contributor has self-assigned it.",
+          "what_changed": "jinchuntan reproduced the bug on main, said they will add the config name to the error, and self-assigned the issue twice."
+        },
+        "7444": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The issue is open with no maintainer reply. The reporter describes thousands of repeated shuffle-buffer warnings when resuming a mid-epoch IterableDataset with buffered shuffle and DDP, and another user reports a loss bump after loading a checkpoint.",
+          "what_changed": "A contributor (@jinchuntan) commented \"#self-assign\", indicating they are taking on the issue."
+        }
+      },
+      "themes": [
+        {
+          "name": "Streaming and IterableDataset",
+          "description": "Bugs where iterable or streamed datasets lose decode, cast, or resume behavior, or emit spurious warnings.",
+          "issues": [
+            8863,
+            8849,
+            7444
+          ]
+        },
+        {
+          "name": "concatenate_datasets",
+          "description": "Problems with concatenate_datasets, covering cache reuse across axes, dropped node splits, and axis=1 failures on iterable sources.",
+          "issues": [
+            8859,
+            8799,
+            8719
+          ]
+        },
+        {
+          "name": "ClassLabel and pandas conversion",
+          "description": "Failures when converting pandas data, including string and Categorical columns, to ClassLabel or fixed-shape array features.",
+          "issues": [
+            8681,
+            8830,
+            8888
+          ]
+        },
+        {
+          "name": "JSON type inference",
+          "description": "The JSON loader infers column types incorrectly, either turning strings into other types or locking an all-null column to null.",
+          "issues": [
+            7222,
+            8713
+          ]
+        },
+        {
+          "name": "Saving and writer cleanup",
+          "description": "Problems in how datasets are written to disk, including unclosed Parquet writers and slow or hanging multiprocess save_to_disk.",
+          "issues": [
+            8743,
+            7290
+          ]
+        }
+      ],
+      "themes_dropped": [],
+      "coverage": 0.5652173913043478,
+      "cost_usd": 0.010527100000000001,
+      "calls": 24
+    }
+  ]
+}

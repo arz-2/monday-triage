@@ -1,0 +1,3 @@
+- Where it helped: planning and design review in a shared doc, stress-testing design decisions (e.g. token limits, timing), and writing the code, tests, evals, and docs.
+- Overrides: the AI suggested raising max_issues to 40; I kept the cap at 30 (a number drawn from a test repo, huggingface/datasets) and had the tool warn loudly when more issues exist. I also dropped the 70 percent theme-coverage target, so the model isn't pushed into made-up, vague themes.
+- Double-checked: ran evals on the status labels to make sure the model's output matches my hand labels, and read live summaries after end-to-end runs to make sure the output matched expectations.

@@ -1,0 +1,849 @@
+{
+  "repo": "huggingface/datasets",
+  "since": "2026-10-18T00:00:00+00:00",
+  "recorded_at": "2026-10-25T05:13:32.167071+00:00",
+  "issues": [
+    {
+      "number": 8888,
+      "title": "Fixed-shape ArrayXD pandas round trips lose row nulls and integer precision",
+      "body": "### Describe the bug\n\n`Dataset.from_pandas(ds.to_pandas())` loses missing rows in a fixed-shape ArrayXD column. A null row becomes a valid all-NaN array. A legitimate all-NaN array must remain distinct from that missing row.\n\n### Steps to reproduce the bug\n\nReproduced on main `ef61228a5756dcebfff8ee245d89c72822fb6ae6` with Python 3.12.14, NumPy 2.5.4, pandas 3.1.0 and PyArrow 26.0.0:\n\n```python\nimport numpy as np\nfrom datasets import Array2D, Dataset, Features\n\nfeatures = Features({\"x\": Array2D((1, 1), \"float64\")})\nsource = Dataset.from_dict({\"x\": [[[np.nan]], None]}, features=features)\nresult = Dataset.from_pandas(source.to_pandas(), features=features)\nassert source.data.column(\"x\").is_null().to_pylist() == [False, True]\nassert result.data.column(\"x\").is_null().to_pylist() == [False, True]\n# Last assertion fails: [False, False].\n```\n\nThe same conversion boundary also rounds valid integer values when another row is null:\n\n```python\nfeatures = Features({\"x\": Array2D((1, 1), \"int64\")})\nsource = Dataset.from_dict({\"x\": [[[2**53 + 1]], None]}, features=features)\nvalue = source.to_pandas().iloc[0][\"x\"][0, 0]\nassert int(value) == 2**53 + 1\n# Fails: 9007199254740992 instead of 9007199254740993.\n```\n\n`Dataset.from_pandas(..., features=features)` then raises `ArrowInvalid` when converting the inserted NaN to int64. Inferred conversion changes the integer feature to float64. Pandas-formatted batched identity `map` is affected too.\n\n`PandasArrayExtensionDtype.__from_arrow__` currently goes through `ArrayExtensionArray.to_numpy`, which inserts NaN rows and promotes the entire fixed-shape column to float64. The pandas adapter therefore loses row validity and exact integer payloads before Arrow reconstruction.\n\n### Expected behavior\n\nPreserve the ArrayXD feature, Arrow row-validity bitmap and non-null payloads through the supported pandas round trip. No complete fix is proposed; a lossless representation still needs compatible copy/slice/take/concatenation and NumPy conversion behavior.\n\nRelated history: #8362 / merged #8363 addressed the Python read path while deliberately preserving NumPy formatting behavior. #8699 / merged #8701 added pandas-to-Arrow support; its null-row regression covers a dynamic shape. This report concerns the remaining fixed-shape pandas boundary. Adjacent open #8524, #8771 and #8867 change missingness, NumPy conversion and pandas concatenation; a fix here needs to preserve their contracts rather than infer nulls from numerical NaNs.\n\n### Environment info\n\n- datasets 5.2.0.dev0, main `ef61228a5756dcebfff8ee245d89c72822fb6ae6`\n- Python 3.12.14; NumPy 2.5.4; pandas 3.1.0; PyArrow 26.0.0\n- macOS arm64\n\nReproduction and investigation used OpenAI Codex assistance. This is a bug report and coordination request, not a claim of a completed fix.\n",
+      "author": "sjdoane",
+      "state": "open",
+      "created_at": "2026-10-23T22:45:51+00:00",
+      "updated_at": "2026-10-24T01:50:42+00:00",
+      "closed_at": null,
+      "comments_count": 2,
+      "url": "https://github.com/huggingface/datasets/issues/8888"
+    },
+    {
+      "number": 8859,
+      "title": "concatenate_datasets reuses preprocessing caches across different axes",
+      "body": "### Describe the bug\n\nConcatenating the same disk-backed datasets using different axes gives the same fingerprint, even though the resulting datasets are different. As a result, calling `map()` on one can reuse the cached results of the other without warning.\n\nIn the example below, a dataset with two rows of paired texts and labels incorrectly becomes four rows with missing values.\n\n### Steps to reproduce the bug\n\n```python\nimport tempfile\nfrom pathlib import Path\n\nfrom datasets import Dataset, concatenate_datasets, load_from_disk\n\n\ndef add_length(example):\n    return {\"length\": len(example[\"text\"] or \"\")}\n\n\nwith tempfile.TemporaryDirectory() as directory:\n    path = Path(directory)\n    Dataset.from_dict({\"text\": [\"a\", \"bb\"]}).save_to_disk(path / \"text\")\n    Dataset.from_dict({\"label\": [0, 1]}).save_to_disk(path / \"label\")\n    parts = [load_from_disk(path / \"text\"), load_from_disk(path / \"label\")]\n\n    concatenate_datasets(parts, axis=0).map(add_length)\n    joined = concatenate_datasets(parts, axis=1)\n    print(joined.map(add_length)[:])\n    print(joined.map(add_length, load_from_cache_file=False)[:])\n```\n\nThe cached call incorrectly returns:\n\n```python\n{\"text\": [\"a\", \"bb\", None, None], \"label\": [None, None, 0, 1], \"length\": [1, 2, 0, 0]}\n```\n\nThe uncached call correctly returns:\n\n```python\n{\"text\": [\"a\", \"bb\"], \"label\": [0, 1], \"length\": [1, 2]}\n```\n\n### Expected behavior\n\nFor either concatenation axis, `map()` should return the same results with or without caching.\n\n`_concatenate_map_style_datasets` uses `info` and `split` to calculate the fingerprint, but does not include `axis`. Adding `axis` would give the two operations different fingerprints and prevent this cache collision.\n\nI'd be happy to contribute the fix and add regression tests for both cache orders. This change would also cause existing downstream caches to be recomputed when the concatenated datasets are created again with the new fingerprint.\n\n### Environment info\n\n- Datasets: main (`18378f7322c7eb1c2d93f895dd8e9f71f8623934`), 5.1.1.dev0; also reproduced with 5.1.0\n- Python: 3.11.17\n- PyArrow: 26.0.0\n- pandas: 3.0.6\n- NumPy: 2.4.6\n- dill: 0.4.1\n- Platform: Linux x86_64, CPU\n\nI used codex assistance to investigate the issue.",
+      "author": "gorkadabo1",
+      "state": "closed",
+      "created_at": "2026-10-20T07:59:58+00:00",
+      "updated_at": "2026-10-23T12:22:33+00:00",
+      "closed_at": "2026-10-23T12:22:33+00:00",
+      "comments_count": 1,
+      "url": "https://github.com/huggingface/datasets/issues/8859"
+    },
+    {
+      "number": 8743,
+      "title": "Parquet export does not close its writer after a batch or metadata failure",
+      "body": "The public Parquet export writer closes `pyarrow.parquet.ParquetWriter` only on successful completion. If `query_table`, `write_table`, or metadata persistence raises, `_write` leaves the writer unclosed while `write()` closes the outer file handle.\n\nThis is distinct from #8558, which changes builder/ArrowWriter finalization: the affected path here is `src/datasets/io/parquet.py::ParquetDatasetWriter._write`, used by `Dataset.to_parquet`.\n\nProposed fix: put writer use in `try/finally` and always close it. Tests inject each failure, verify that the original exception propagates, and verify close-on-success as a control.\n\nAI disclosure: autonomously investigated using Perplexity Computer (GPT-6.1); no human review is claimed.\n",
+      "author": "nawaaaaaAaar",
+      "state": "open",
+      "created_at": "2026-10-05T15:30:06+00:00",
+      "updated_at": "2026-10-23T10:20:40+00:00",
+      "closed_at": null,
+      "comments_count": 3,
+      "url": "https://github.com/huggingface/datasets/issues/8743"
+    },
+    {
+      "number": 7290,
+      "title": "`Dataset.save_to_disk` hangs when using num_proc > 1",
+      "body": "### Describe the bug\n\nHi, I'm encountered a small issue when saving datasets that led to the saving taking up to multiple hours.\r\nSpecifically, [`Dataset.save_to_disk`](https://huggingface.co/docs/datasets/main/en/package_reference/main_classes#datasets.Dataset.save_to_disk) is a lot slower when using `num_proc>1` than when using `num_proc=1`\r\n\r\nThe documentation mentions that \"Multiprocessing is disabled by default.\", but there is no explanation on how to enable it.\n\n### Steps to reproduce the bug\n\n```\r\nimport numpy as np\r\nfrom datasets import Dataset\r\n\r\nn_samples = int(4e6)\r\nn_tokens_sample = 100\r\ndata_dict = {\r\n    'tokens' : np.random.randint(0, 100, (n_samples, n_tokens_sample)),\r\n}\r\n\r\ndataset = Dataset.from_dict(data_dict)\r\ndataset.save_to_disk('test_dataset', num_proc=1)\r\ndataset.save_to_disk('test_dataset', num_proc=4)\r\ndataset.save_to_disk('test_dataset', num_proc=8)\r\n```\r\n\r\nThis results in:\r\n```\r\n>>> dataset.save_to_disk('test_dataset', num_proc=1)\r\nSaving the dataset (7/7 shards): 100%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588| 4000000/4000000 [00:17<00:00, 228075.15 examples/s]\r\n>>> dataset.save_to_disk('test_dataset', num_proc=4)\r\nSaving the dataset (7/7 shards): 100%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588| 4000000/4000000 [01:49<00:00, 36583.75 examples/s]\r\n>>> dataset.save_to_disk('test_dataset', num_proc=8)\r\nSaving the dataset (8/8 shards): 100%|\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2588| 4000000/4000000 [02:11<00:00, 30518.43 examples/s]\r\n```\r\n\r\nWith larger datasets it can take hours, but I didn't benchmark that for this bug report.\n\n### Expected behavior\n\nI would expect using `num_proc>1` to be faster instead of slower than `num_proc=1`. \n\n### Environment info\n\n- `datasets` version: 3.1.0\r\n- Platform: Linux-5.15.153.1-microsoft-standard-WSL2-x86_64-with-glibc2.35\r\n- Python version: 3.10.12\r\n- `huggingface_hub` version: 0.26.2\r\n- PyArrow version: 18.0.0\r\n- Pandas version: 2.2.3\r\n- `fsspec` version: 2024.6.1",
+      "author": "JohannesAck",
+      "state": "open",
+      "created_at": "2024-11-14T05:25:13+00:00",
+      "updated_at": "2026-10-23T04:26:22+00:00",
+      "closed_at": null,
+      "comments_count": 6,
+      "url": "https://github.com/huggingface/datasets/issues/7290"
+    },
+    {
+      "number": 8877,
+      "title": "Dataset.from_sql caches different SQLAlchemy queries under the same key when bound values change",
+      "body": "### Describe the bug\n\nWhen `Dataset.from_sql()` receives a SQLAlchemy `Selectable`, queries with different parameter values can use the same cache key. If the first query is cached, the next query can return its rows instead of the correct results, without warning. This affects `WHERE` conditions, `LIMIT`, and expanding `IN` parameters.\n\n### Steps to reproduce the bug\n\n```\nfrom pathlib import Path\nfrom tempfile import TemporaryDirectory\n\nimport sqlalchemy as sa\nfrom datasets import Dataset\n\nwith TemporaryDirectory() as tmp:\n    db_path = Path(tmp) / \"example.db\"\n    uri = f\"sqlite:///{db_path}\"\n    cache_dir = str(Path(tmp) / \"cache\")\n\n    engine = sa.create_engine(uri)\n    metadata = sa.MetaData()\n    items = sa.Table(\n        \"items\", metadata,\n        sa.Column(\"id\", sa.Integer, primary_key=True),\n    )\n    metadata.create_all(engine)\n\n    with engine.begin() as connection:\n        connection.execute(items.insert(), [{\"id\": 1}, {\"id\": 2}, {\"id\": 3}])\n\n    query1 = sa.select(items).where(items.c.id == 1)\n    query2 = sa.select(items).where(items.c.id == 2)\n\n    first = Dataset.from_sql(query1, uri, cache_dir=cache_dir)\n    second = Dataset.from_sql(query2, uri, cache_dir=cache_dir)\n\n    print(first[\"id\"])   # [1]\n    print(second[\"id\"])  # [1], but should be [2]\n```\n\nI also reproduced this with `LIMIT 1` versus `LIMIT 2`, and with `IN ([1])` versus `IN ([2, 3])`. Using an empty cache returns the correct rows.\n\n### Expected behavior\n\nQueries with different parameter values should use different cache keys and return the correct SQL results. Equivalent queries with the same parameter values should still reuse the cache.\n\n### Likely cause\n\nIn [`SqlConfig.create_config_id()`](https://github.com/huggingface/datasets/blob/609f27cbf5941602aee254e9d770aa843f073e8c/src/datasets/packaged_modules/sql/sql.py#L45-L73), SQLAlchemy selectables are compiled to a string:\n\n```\nsql_str = str(sql.compile(dialect=engine.dialect))\nconfig_kwargs[\"sql\"] = sql_str\n```\n\nThe compiled SQL contains placeholders such as `?`, but not their values. These values are stored in `compiled.params` and are not included in the cache key. The cache key should include both the compiled SQL and its parameter values, while remaining the same for equivalent queries.\n\n### Environment info\n\n- Datasets: main at 609f27cbf\n- SQLAlchemy: 2.0.46 and 2.1.6\n- Database: local SQLite\n\nReproductions investigated with codex assistance. \n\nPR #8752 changes the same method to support compiling SQLAlchemy selectables using Engine and Connection dialects. It does not address the missing bound values. I can contribute a targeted fix with regression tests and am happy to coordinate with #8752 to avoid overlapping changes.\n",
+      "author": "gorkadabo1",
+      "state": "open",
+      "created_at": "2026-10-22T20:53:46+00:00",
+      "updated_at": "2026-10-22T20:54:04+00:00",
+      "closed_at": null,
+      "comments_count": 1,
+      "url": "https://github.com/huggingface/datasets/issues/8877"
+    },
+    {
+      "number": 5225,
+      "title": "Add video feature",
+      "body": "### Feature request\n\nAdd a `Video` feature to the library so folks can include videos in their datasets.\n\n### Motivation\n\nBeing able to load Video data would be quite helpful. However, there are some challenges when it comes to videos:\r\n\r\n1. Videos, unlike images, can end up being extremely large files\r\n2. Often times when training video models, you need to do some very specific sampling. Videos might end up needing to be broken down into X number of clips used for training/inference\r\n3. Videos have an additional audio stream, which must be accounted for\r\n4. The feature needs to be able to encode/decode videos (with right video settings) from bytes.\n\n### Your contribution\n\nI did work on this a while back in [this (now closed) PR](https://github.com/huggingface/datasets/pull/4532). It used a library I made called [encoded_video](https://github.com/nateraw/encoded-video), which is basically the utils from [pytorchvideo](https://github.com/facebookresearch/pytorchvideo), but without the `torch` dep. It included the ability to read/write from bytes, as we need to do here. We don't want to be using a sketchy library that I made as a dependency in this repo, though.\r\n\r\nWould love to use this issue as a place to:\r\n- brainstorm ideas on how to do this right\r\n- list ways/examples to work around it for now\r\n\r\nCC @sayakpaul @mariosasko @fcakyon",
+      "author": "nateraw",
+      "state": "open",
+      "created_at": "2022-11-10T17:36:11+00:00",
+      "updated_at": "2026-10-22T00:49:28+00:00",
+      "closed_at": null,
+      "comments_count": 10,
+      "url": "https://github.com/huggingface/datasets/issues/5225"
+    },
+    {
+      "number": 8799,
+      "title": "concatenate_datasets drops the split_dataset_by_node split, so every rank gets all the data",
+      "body": "### Describe the bug\r\n\r\nIf you call `split_dataset_by_node` on iterable datasets and then concatenate them with `concatenate_datasets`, the result is no longer split: every rank iterates over the full data of all inputs.\r\n\r\nThere is no error. In distributed training, each rank silently trains on the same data, so every example is seen `world_size` times per epoch.\r\n\r\n`interleave_datasets` (#7868, fixed in #7992) and `.skip()` (#8568) had the same problem and now keep the split. `concatenate_datasets` doesn't yet. Both `axis=0` and `axis=1` are affected.\r\n\r\n### Steps to reproduce the bug\r\n\r\n```python\r\nfrom datasets import Dataset, concatenate_datasets, interleave_datasets\r\nfrom datasets.distributed import split_dataset_by_node\r\n\r\na = Dataset.from_dict({\"i\": [0, 1, 2, 3]}).to_iterable_dataset(num_shards=2)\r\nb = Dataset.from_dict({\"i\": [10, 11, 12, 13]}).to_iterable_dataset(num_shards=2)\r\n\r\nfor rank in range(2):\r\n    a_rank = split_dataset_by_node(a, rank=rank, world_size=2)\r\n    b_rank = split_dataset_by_node(b, rank=rank, world_size=2)\r\n    print(f\"rank {rank}\")\r\n    print(\"  concatenate:\", [x[\"i\"] for x in concatenate_datasets([a_rank, b_rank])])\r\n    print(\"  interleave: \", [x[\"i\"] for x in interleave_datasets([a_rank, b_rank])])\r\n```\r\n\r\nOutput with datasets 5.1.0 and on `main` at `9e7496a4d`:\r\n\r\n```\r\nrank 0\r\n  concatenate: [0, 1, 2, 3, 10, 11, 12, 13]\r\n  interleave:  [0, 10, 1]\r\nrank 1\r\n  concatenate: [0, 1, 2, 3, 10, 11, 12, 13]\r\n  interleave:  [2, 12, 3]\r\n```\r\n\r\nBoth ranks get all 8 rows from `concatenate_datasets`. `interleave_datasets` correctly gives each rank only its own rows.\r\n\r\n### Expected behavior\r\n\r\n```\r\nrank 0\r\n  concatenate: [0, 1, 10, 11]\r\nrank 1\r\n  concatenate: [2, 3, 12, 13]\r\n```\r\n\r\nThis is also what you get with `split_dataset_by_node(concatenate_datasets([a, b]), rank, 2)`.\r\n\r\nThe cause: `_concatenate_iterable_datasets` in `src/datasets/iterable_dataset.py` doesn't pass `distributed=` to the `IterableDataset` it returns, while `_interleave_iterable_datasets` does (and checks that all inputs are split the same way).\r\n\r\nI have a fix with tests ready and will open a PR shortly.\r\n\r\n### Environment info\r\n\r\n- `datasets` version: 5.1.0 (also reproduced on `main` at `9e7496a4d`)\r\n- Platform: Windows-10-10.0.26200-SP0\r\n- Python version: 3.11.3\r\n- `huggingface_hub` version: 2.2.0\r\n- PyArrow version: 26.0.0\r\n- Pandas version: 3.0.6\r\n- `fsspec` version: 2026.7.0\r\n",
+      "author": "hzmsh",
+      "state": "closed",
+      "created_at": "2026-10-14T04:34:28+00:00",
+      "updated_at": "2026-10-21T14:55:09+00:00",
+      "closed_at": "2026-10-21T14:55:09+00:00",
+      "comments_count": 1,
+      "url": "https://github.com/huggingface/datasets/issues/8799"
+    },
+    {
+      "number": 8242,
+      "title": "\"eval_strategy\": \"no\" perform evaluation",
+      "body": "### Describe the bug\n\nHi,\n  I'm trying to train a diffusion model and I getting stuck with\n```\nstrace -p 967873\nstrace: Process 967873 attached\nioctl(9, _IOC(_IOC_READ|_IOC_WRITE, 0x46, 0x2a, 0x20), 0x7fff18579d90) = 0\nioctl(9, _IOC(_IOC_READ|_IOC_WRITE, 0x46, 0x2a, 0x20), 0x7fff18579d90) = 0\n```\n\nBut my issue is that it hangs when it tries to do eval.  So I decided to `eval_strategy: \"no\"` to skip that previous issue but the code doesn't respect the fact that I explicitly asked to skip eval.\n\n<details>\n<summary>config.yaml</summary>\nbase_model: meta-llama/Llama-3.2-1B\n\n```yaml\n# Automatically upload checkpoint and final model to HF\n# hub_model_id: username/custom_model_name\n\n# Continue training after requeueing.\n# NOTE: resume_from_checkpoint must be empty\nresume_from_checkpoint:\nauto_resume_from_checkpoints: true\n\n# Setting `pretraining_dataset` without explicitly setting `streaming: true` is deprecated.\n# In a future release, streaming will not be automatically enabled when using pretraining_dataset.\n# Please explicitly set `streaming: true` in your configuration to maintain current behavior.\n# NOTE: Streaming currently only supports a single dataset. Multi-dataset support will be added soon.\nstreaming: false\n\n# Streaming-specific settings\nstreaming_multipack_buffer_size: 10000  # NOTE: 50000 required >300GB RAM WTF?!\nshuffle_merged_datasets: true\n# For pretraining: control with pretrain_multipack_attn\npretrain_multipack_attn: true  # prevent cross-attention between packed samples\n\ndataset_prepared_path: last_run_prepared\n  - path: A.jsonl\n    ds_type: json\n    type: completion\n  - path: B.jsonl\n    ds_type: json\n    type: completion\n  - path: C.jsonl\n    ds_type: json\n    type: completion\n  - path: D.jsonl\n    ds_type: json\n    type: completion\n\neval_strategy: \"no\"\ntest_datasets:\n  - path: E.jsonl\n    ds_type: json\n    type: completion\n\nplugins:\n  - axolotl.integrations.diffusion.DiffusionPlugin\n\ndiffusion:\n  noise_schedule: cosine\n  min_mask_ratio: 0.15\n  max_mask_ratio: 0.85\n  num_diffusion_steps: 128\n  eps: 5e-4\n  importance_weighting: true\n  mask_token_id: 128002\n  # NOTE: It looks like it is trying to run eval on train_dataloader().\n  generate_samples: true\n  # generate_samples: false\n  generation_interval: 500  # same as the save frequency\n\noutput_dir: ./outputs/model-out\n\nsequence_len: 512\nsample_packing: true\n\ngradient_accumulation_steps: 4\nmicro_batch_size: 32\n# NOTE: max_steps must be set when using streaming datasets.\n# Trainer cannot infer dataset length for iterable datasets.\n# max_steps: 100000\nnum_epochs: 3.0\nwarmup_ratio: 0.1\n\n# Optimizer and scheduler\noptimizer: adamw_8bit\n# optimizer: adamw_torch_8bit\nlr_scheduler: cosine\nlearning_rate: 3e-4\nattn_implementation: sdpa\n\n# Precision and performance\nbf16: auto\ntf32: true\n\n# Logging and checkpointing\nlogging_steps: 5\nsave_strategy: steps\nsave_steps: 500\nsave_total_limit: 3\n\n# Special tokens\nspecial_tokens:\n  pad_token: \"<|end_of_text|>\"\n\nuse_tensorboard: true\nwandb_project:\nwandb_entity:\nwandb_watch:\nwandb_name:\nwandb_log_model:\n\nload_best_model_at_end: false\n\n# save_first_step: true  # uncomment this to validate checkpoint saving works with your config\n\n# fsdp_version: 2\n# fsdp_config:\n#   offload_params: true\n#   state_dict_type: FULL_STATE_DICT\n#   auto_wrap_policy: TRANSFORMER_BASED_WRAP\n#   transformer_layer_cls_to_wrap: LlamaDecoderLayer\n#   reshard_after_forward: true\n```\n\n</details>\n\n\n### Steps to reproduce the bug\n\n```sh\naccelerate launch \\\n--multi_gpu \\\n--num_processes=\"$SLURM_GPUS_ON_NODE\" \\\n--num_machines=\"$SLURM_NNODES\" \\\n--mixed_precision=bf16 \\\n-m axolotl.cli.train \\\n\"$config\" \\\n--output-dir=\"$output_dir\" \\\n--dataloader-num-workers=\"$SLURM_CPUS_PER_TASK\" \\\n--dataset-num-proc=\"$SLURM_TASKS_PER_NODE\" \\\n--dataset-processes=\"$SLURM_TASKS_PER_NODE\" \\\n--deepspeed=deepspeed_configs/zero1.json\n```\n\n\n### Expected behavior\n\nThe eval step shouldn't run.\n\n### Environment info\n\nSlurm cluster, using single node 4 GPUs and `deepspeed_configs/zero1.json`.\n\n\n<details>\n<summary>uv pip freeze</summary>\n```\nabsl-py==2.4.0\naccelerate==1.13.0\naddict==2.4.0\nadlfs==2026.4.0\naiobotocore==2.26.0\naiofiles==23.2.1\naiohappyeyeballs==2.6.1\naiohttp==3.13.5\naioitertools==0.13.0\naiosignal==1.4.0\nannotated-doc==0.0.4\nannotated-types==0.7.0\nantlr4-python3-runtime==4.13.2\nanyio==4.13.0\nart==6.5\nasttokens==3.0.1\nattrs==26.1.0\nautoawq==0.2.7.post3\n-e file:///gpfs/work/larkins/TraLLM/axolotl/axolotl\naxolotl-contribs-lgpl==0.0.7\naxolotl-contribs-mit==0.0.6\nazure-core==1.40.0\nazure-datalake-store==0.0.53\nazure-identity==1.25.3\nazure-storage-blob==12.28.0\nbackoff==2.2.1\nbitsandbytes==0.49.1\nbotocore==1.41.5\nbrotli==1.2.0\ncbor2==6.0.1\ncertifi==2026.4.22\ncffi==2.0.0\nchardet==6.0.0.post1\ncharset-normalizer==3.4.7\ncircuitbreaker==2.1.3\nclick==8.3.3\ncmake==4.3.2\ncolorama==0.4.6\ncoloredlogs==15.0.1\ncryptography==46.0.7\ncuda-bindings==13.2.0\ncuda-pathfinder==1.5.4\ncuda-toolkit==13.0.2\ncut-cross-entropy @ git+https://github.com/axolotl-ai-cloud/ml-cross-entropy.git@fec1a888e6f4ad7e6270ea7b02186e56c76f5ac2\ndataproperty==1.1.0\ndatasets==4.8.5\ndecorator==5.2.1\ndeepspeed==0.18.9\ndeepspeed-kernels==0.0.1.dev1698255861\ndill==0.3.8\ndistro==1.9.0\neinops==0.8.2\nevaluate==0.4.1\nexecuting==2.2.1\nfastapi==0.136.1\nfastcore==1.12.44\nffmpy==1.0.0\nfilelock==3.29.0\nfire==0.7.1\nfla-core==0.4.1\nflash-linear-attention==0.4.1\nfrozenlist==1.8.0\nfsspec==2025.3.0\ngcsfs==2025.3.0\ngitdb==4.0.12\ngitpython==3.1.49\ngoogle-api-core==2.30.3\ngoogle-auth==2.50.0\ngoogle-auth-oauthlib==1.3.1\ngoogle-cloud-core==2.5.1\ngoogle-cloud-storage==3.10.1\ngoogle-crc32c==1.8.0\ngoogle-resumable-media==2.8.2\ngoogleapis-common-protos==1.74.0\ngradio==6.14.0\ngradio-client==2.5.0\ngroovy==0.1.2\ngrpcio==1.80.0\ngrpclib==0.4.7\nh11==0.16.0\nh2==4.3.0\nhf-gradio==0.4.1\nhf-transfer==0.1.9\nhf-xet==1.4.3\nhjson==3.1.0\nhpack==4.1.0\nhttpcore==1.0.9\nhttptools==0.7.1\nhttpx==0.28.1\nhuggingface-hub==1.13.0\nhumanfriendly==10.0\nhyperframe==6.1.0\nidna==3.13\nimmutabledict==4.2.0\nipython==9.13.0\nipython-pygments-lexers==1.1.1\nisodate==0.7.2\njedi==0.20.0\njinja2==3.1.6\njmespath==1.1.0\njoblib==1.5.3\njsonlines==4.0.0\njsonschema==4.26.0\njsonschema-specifications==2025.9.1\nkernels==0.13.0\nlangdetect==1.0.9\nliger-kernel==0.7.0\nllvmlite==0.47.0\nlm-eval==0.4.11\nlxml==6.1.0\nmarkdown==3.10.2\nmarkdown-it-py==4.0.0\nmarkupsafe==3.0.3\nmatplotlib-inline==0.2.2\nmbstrdecoder==1.1.5\nmdurl==0.1.2\nmistral-common==1.11.0\nmodal==1.3.0.post1\nmore-itertools==11.0.2\nmpmath==1.3.0\nmsal==1.36.0\nmsal-extensions==1.3.1\nmsgpack==1.1.2\nmultidict==6.7.1\nmultiprocess==0.70.16\nnetworkx==3.6.1\nninja==1.13.0\nnltk==3.9.4\nnumba==0.65.1\nnumexpr==2.14.1\nnumpy==2.3.5\nnvidia-cublas==13.1.0.3\nnvidia-cuda-cupti==13.0.85\nnvidia-cuda-nvrtc==13.0.88\nnvidia-cuda-runtime==13.0.96\nnvidia-cudnn-cu13==9.19.0.56\nnvidia-cufft==12.0.0.61\nnvidia-cufile==1.15.1.6\nnvidia-curand==10.4.0.35\nnvidia-cusolver==12.0.4.66\nnvidia-cusparse==12.6.3.3\nnvidia-cusparselt-cu13==0.8.0\nnvidia-ml-py==12.560.30\nnvidia-nccl-cu13==2.28.9\nnvidia-nvjitlink==13.0.88\nnvidia-nvshmem-cu13==3.4.5\nnvidia-nvtx==13.0.85\noauthlib==3.3.1\noci==2.173.1\nocifs==1.3.2\nopenenv-core==0.1.0\noptimum==1.16.2\norjson==3.11.8\npackaging==26.0\npandas==2.3.3\nparso==0.8.7\npathvalidate==3.3.1\npeft==0.19.1\npexpect==4.9.0\npillow==11.3.0\nplatformdirs==4.9.6\nportalocker==3.2.0\nposthog==6.7.11\nprompt-toolkit==3.0.52\npropcache==0.4.1\nproto-plus==1.27.2\nprotobuf==5.29.6\npsutil==7.2.2\nptyprocess==0.7.0\npudb==2025.1.5\npure-eval==0.2.3\npy-cpuinfo==9.0.0\npyarrow==24.0.0\npyasn1==0.6.3\npyasn1-modules==0.4.2\npybind11==3.0.4\npycountry==26.2.16\npycparser==3.0\npydantic==2.10.6\npydantic-core==2.27.2\npydantic-extra-types==2.11.1\npydub==0.25.1\npygments==2.20.0\npyjwt==2.12.1\npyopenssl==26.2.0\npytablewriter==1.2.1\npython-dateutil==2.9.0.post0\npython-dotenv==1.0.1\npython-multipart==0.0.27\npytz==2026.2\npyyaml==6.0.3\nreferencing==0.37.0\nregex==2026.4.4\nrequests==2.33.1\nrequests-oauthlib==2.0.0\nresponses==0.18.0\nrich==15.0.0\nrouge-score==0.1.2\nrpds-py==0.30.0\nruff==0.15.12\ns3fs==2025.3.0\nsacrebleu==2.6.0\nsafehttpx==0.1.7\nsafetensors==0.7.0\nschedulefree==1.4.1\nscikit-learn==1.4.2\nscipy==1.17.1\nsemantic-version==2.10.0\nsentencepiece==0.2.1\nsentry-sdk==2.59.0\nsetuptools==81.0.0\nshellingham==1.5.4\nsigtools==4.0.1\nsix==1.17.0\nsmmap==5.0.3\nsqlitedict==2.1.0\nstack-data==0.6.3\nstarlette==0.52.1\nsympy==1.14.0\nsynchronicity==0.11.1\ntabledata==1.3.4\ntabulate==0.10.0\ntcolorpy==0.1.7\ntensorboard==2.20.0\ntensorboard-data-server==0.7.2\ntermcolor==3.3.0\nthreadpoolctl==3.6.0\ntiktoken==0.12.0\ntokenizers==0.22.2\ntoml==0.10.2\ntomlkit==0.13.3\ntorch==2.11.0+cu130\ntorchao==0.17.0\ntorchvision==0.25.0+cu130\ntqdm==4.67.3\ntqdm-multiprocess==0.0.11\ntrackio==0.25.1\ntraitlets==5.15.0\ntransformers==5.5.4\ntriton==3.6.0\nstack-data==0.6.3\nstarlette==0.52.1\nsympy==1.14.0\nsynchronicity==0.11.1\ntabledata==1.3.4\ntabulate==0.10.0\ntcolorpy==0.1.7\ntensorboard==2.20.0\ntensorboard-data-server==0.7.2\ntermcolor==3.3.0\nthreadpoolctl==3.6.0\ntiktoken==0.12.0\ntokenizers==0.22.2\ntoml==0.10.2\ntomlkit==0.13.3\ntorch==2.11.0+cu130\ntorchao==0.17.0\ntorchvision==0.25.0+cu130\ntqdm==4.67.3\ntqdm-multiprocess==0.0.11\ntrackio==0.25.1\ntraitlets==5.15.0\ntransformers==5.5.4\ntriton==3.6.0\ntrl==1.1.0\ntypepy==1.3.5\ntyper==0.25.1\ntypes-certifi==2021.10.8.3\ntypes-toml==0.10.8.20260408\ntyping-extensions==4.15.0\ntyping-inspection==0.4.2\ntzdata==2026.2\nurllib3==2.6.3\nurwid==4.0.0\nurwid-readline==0.15.1\nuvicorn==0.46.0\nuvloop==0.22.1\nwandb==0.26.1\nwatchfiles==1.1.1\nwcwidth==0.7.0\nwebsockets==15.0.1\nwerkzeug==3.1.8\nword2number==1.1\nwrapt==1.17.3\nxformers==0.0.35\nxxhash==3.7.0\nyarl==1.23.0\nzstandard==0.22.0\n```\n</details>\n",
+      "author": "SamuelLarkin",
+      "state": "open",
+      "created_at": "2026-06-05T18:08:17+00:00",
+      "updated_at": "2026-10-20T15:59:26+00:00",
+      "closed_at": null,
+      "comments_count": 1,
+      "url": "https://github.com/huggingface/datasets/issues/8242"
+    },
+    {
+      "number": 8863,
+      "title": "IterableDataset.decode(False) has no effect after shard() on a streamed media dataset",
+      "body": "### Describe the bug\n\nSince #8791, `load_dataset(..., streaming=True)` decodes media datasets from the Hub in worker threads by default. `decode()` replaces that threaded decoding step when it is the last step of the dataset, but `shard()` loses track of it. After `ds.shard(...)`, `ds.decode(False)` keeps yielding decoded images.\n\n`MappedExamplesIterable.shard_data_sources` (and `shuffle_data_sources`, `reshard_data_sources`) does not copy `decoding_pool`, so `decode()` does not recognize the threaded step anymore and stacks a new step on top of it.\n\n### Steps to reproduce the bug\n\n```python\nimport os, tempfile\nfrom PIL import Image as PILImage\nfrom datasets import Features, Image, IterableDataset\n\nd = tempfile.mkdtemp()\npaths = []\nfor k in range(2):\n    p = os.path.join(d, f\"{k}.jpg\")\n    PILImage.new(\"RGB\", (4, 4)).save(p)\n    paths.append(p)\n\ndef gen(paths):\n    for p in paths:\n        yield {\"image\": p}\n\nds = IterableDataset.from_generator(gen, gen_kwargs={\"paths\": paths}, features=Features({\"image\": Image()}))\nds = ds.decode(num_threads=2)  # what load_dataset(..., streaming=True) does for Hub media datasets\n\nprint(next(iter(ds.decode(False)))[\"image\"])\nprint(next(iter(ds.shard(num_shards=2, index=0).decode(False)))[\"image\"])\n```\n\n### Expected behavior\n\nBoth lines print `{'path': '.../0.jpg', 'bytes': None}`.\n\nInstead, the second line prints a `PIL.JpegImagePlugin.JpegImageFile` object.\n\n### Environment info\n\n- `datasets` main (5.2.0.dev0, commit 0623990)\n- Python 3.11, Linux",
+      "author": "RaphaelFakhri",
+      "state": "open",
+      "created_at": "2026-10-20T09:17:23+00:00",
+      "updated_at": "2026-10-20T09:17:23+00:00",
+      "closed_at": null,
+      "comments_count": 0,
+      "url": "https://github.com/huggingface/datasets/issues/8863"
+    },
+    {
+      "number": 7222,
+      "title": "TypeError: Couldn't cast array of type string to null in long json",
+      "body": "### Describe the bug\n\nIn general, changing the type from string to null is allowed within a dataset \u2014 there are even examples of this in the documentation.\r\n\r\nHowever, if the dataset is large and unevenly distributed, this allowance stops working. The schema gets locked in after reading a chunk. \r\n\r\nConsequently, if all values in the first chunk of a field are, for example, null, the field will be locked as type null, and if a string appears in that field in the second chunk, it will trigger this error:\r\n\r\n<details> \r\n  <summary>Traceback </summary>\r\n\r\n```\r\n   TypeError                                 Traceback (most recent call last)\r\n\r\n[/usr/local/lib/python3.10/dist-packages/datasets/builder.py](https://localhost:8080/#) in _prepare_split_single(self, gen_kwargs, fpath, file_format, max_shard_size, job_id)\r\n   1868                     try:\r\n-> 1869                         writer.write_table(table)\r\n   1870                     except CastError as cast_error:\r\n\r\n14 frames\r\n\r\n[/usr/local/lib/python3.10/dist-packages/datasets/arrow_writer.py](https://localhost:8080/#) in write_table(self, pa_table, writer_batch_size)\r\n    579         pa_table = pa_table.combine_chunks()\r\n--> 580         pa_table = table_cast(pa_table, self._schema)\r\n    581         if self.embed_local_files:\r\n\r\n[/usr/local/lib/python3.10/dist-packages/datasets/table.py](https://localhost:8080/#) in table_cast(table, schema)\r\n   2291     if table.schema != schema:\r\n-> 2292         return cast_table_to_schema(table, schema)\r\n   2293     elif table.schema.metadata != schema.metadata:\r\n\r\n[/usr/local/lib/python3.10/dist-packages/datasets/table.py](https://localhost:8080/#) in cast_table_to_schema(table, schema)\r\n   2244         )\r\n-> 2245     arrays = [\r\n   2246         cast_array_to_feature(\r\n\r\n[/usr/local/lib/python3.10/dist-packages/datasets/table.py](https://localhost:8080/#) in <listcomp>(.0)\r\n   2245     arrays = [\r\n-> 2246         cast_array_to_feature(\r\n   2247             table[name] if name in table_column_names else pa.array([None] * len(table), type=schema.field(name).type),\r\n\r\n[/usr/local/lib/python3.10/dist-packages/datasets/table.py](https://localhost:8080/#) in wrapper(array, *args, **kwargs)\r\n   1794         if isinstance(array, pa.ChunkedArray):\r\n-> 1795             return pa.chunked_array([func(chunk, *args, **kwargs) for chunk in array.chunks])\r\n   1796         else:\r\n\r\n[/usr/local/lib/python3.10/dist-packages/datasets/table.py](https://localhost:8080/#) in <listcomp>(.0)\r\n   1794         if isinstance(array, pa.ChunkedArray):\r\n-> 1795             return pa.chunked_array([func(chunk, *args, **kwargs) for chunk in array.chunks])\r\n   1796         else:\r\n\r\n[/usr/local/lib/python3.10/dist-packages/datasets/table.py](https://localhost:8080/#) in cast_array_to_feature(array, feature, allow_primitive_to_str, allow_decimal_to_str)\r\n   2101     elif not isinstance(feature, (Sequence, dict, list, tuple)):\r\n-> 2102         return array_cast(\r\n   2103             array,\r\n\r\n[/usr/local/lib/python3.10/dist-packages/datasets/table.py](https://localhost:8080/#) in wrapper(array, *args, **kwargs)\r\n   1796         else:\r\n-> 1797             return func(array, *args, **kwargs)\r\n   1798 \r\n\r\n[/usr/local/lib/python3.10/dist-packages/datasets/table.py](https://localhost:8080/#) in array_cast(array, pa_type, allow_primitive_to_str, allow_decimal_to_str)\r\n   1947         if pa.types.is_null(pa_type) and not pa.types.is_null(array.type):\r\n-> 1948             raise TypeError(f\"Couldn't cast array of type {_short_str(array.type)} to {_short_str(pa_type)}\")\r\n   1949         return array.cast(pa_type)\r\n\r\nTypeError: Couldn't cast array of type string to null\r\n\r\n\r\nThe above exception was the direct cause of the following exception:\r\n\r\nDatasetGenerationError                    Traceback (most recent call last)\r\n\r\n[<ipython-input-353-e02f83980611>](https://localhost:8080/#) in <cell line: 1>()\r\n----> 1 dd = load_dataset(\"json\", data_files=[\"TEST.json\"])\r\n\r\n[/usr/local/lib/python3.10/dist-packages/datasets/load.py](https://localhost:8080/#) in load_dataset(path, name, data_dir, data_files, split, cache_dir, features, download_config, download_mode, verification_mode, keep_in_memory, save_infos, revision, token, streaming, num_proc, storage_options, trust_remote_code, **config_kwargs)\r\n   2094 \r\n   2095     # Download and prepare data\r\n-> 2096     builder_instance.download_and_prepare(\r\n   2097         download_config=download_config,\r\n   2098         download_mode=download_mode,\r\n\r\n[/usr/local/lib/python3.10/dist-packages/datasets/builder.py](https://localhost:8080/#) in download_and_prepare(self, output_dir, download_config, download_mode, verification_mode, dl_manager, base_path, file_format, max_shard_size, num_proc, storage_options, **download_and_prepare_kwargs)\r\n    922                     if num_proc is not None:\r\n    923                         prepare_split_kwargs[\"num_proc\"] = num_proc\r\n--> 924                     self._download_and_prepare(\r\n    925                         dl_manager=dl_manager,\r\n    926                         verification_mode=verification_mode,\r\n\r\n[/usr/local/lib/python3.10/dist-packages/datasets/builder.py](https://localhost:8080/#) in _download_and_prepare(self, dl_manager, verification_mode, **prepare_split_kwargs)\r\n    997             try:\r\n    998                 # Prepare split will record examples associated to the split\r\n--> 999                 self._prepare_split(split_generator, **prepare_split_kwargs)\r\n   1000             except OSError as e:\r\n   1001                 raise OSError(\r\n\r\n[/usr/local/lib/python3.10/dist-packages/datasets/builder.py](https://localhost:8080/#) in _prepare_split(self, split_generator, file_format, num_proc, max_shard_size)\r\n   1738             job_id = 0\r\n   1739             with pbar:\r\n-> 1740                 for job_id, done, content in self._prepare_split_single(\r\n   1741                     gen_kwargs=gen_kwargs, job_id=job_id, **_prepare_split_args\r\n   1742                 ):\r\n\r\n[/usr/local/lib/python3.10/dist-packages/datasets/builder.py](https://localhost:8080/#) in _prepare_split_single(self, gen_kwargs, fpath, file_format, max_shard_size, job_id)\r\n   1894             if isinstance(e, DatasetGenerationError):\r\n   1895                 raise\r\n-> 1896             raise DatasetGenerationError(\"An error occurred while generating the dataset\") from e\r\n   1897 \r\n   1898         yield job_id, True, (total_num_examples, total_num_bytes, writer._features, num_shards, shard_lengths)\r\n\r\nDatasetGenerationError: An error occurred while generating the dataset\r\n```\r\n\r\n</details>\n\n### Steps to reproduce the bug\n\n```python\r\nimport json\r\nfrom datasets import load_dataset\r\n\r\nwith open(\"TEST.json\", \"w\") as f:\r\n    row = {\"ballast\": \"qwerty\" * 1000, \"b\": None}\r\n    row_str = json.dumps(row) + \"\\n\"\r\n    line_size = len(row_str)\r\n    chunk_size = 10 << 20\r\n    lines_in_chunk = chunk_size // line_size + 1\r\n    print(f\"Writing {lines_in_chunk} lines\")\r\n    for i in range(lines_in_chunk):\r\n        f.write(row_str)\r\n    null_row = {\"ballast\": \"Gotcha\", \"b\": \"Not Null\"}\r\n    f.write(json.dumps(null_row) + \"\\n\")\r\n\r\nload_dataset(\"json\", data_files=[\"TEST.json\"])\r\n```\n\n### Expected behavior\n\nConcatenation of the chunks without errors\n\n### Environment info\n\n- `datasets` version: 3.0.1\r\n- Platform: Linux-6.1.85+-x86_64-with-glibc2.35\r\n- Python version: 3.10.12\r\n- `huggingface_hub` version: 0.24.7\r\n- PyArrow version: 16.1.0\r\n- Pandas version: 2.2.2\r\n- `fsspec` version: 2024.6.1",
+      "author": "nokados",
+      "state": "open",
+      "created_at": "2024-10-12T08:14:59+00:00",
+      "updated_at": "2026-10-19T14:46:32+00:00",
+      "closed_at": null,
+      "comments_count": 8,
+      "url": "https://github.com/huggingface/datasets/issues/7222"
+    },
+    {
+      "number": 8849,
+      "title": "cast_column / cast are ignored on streaming datasets decoded in threads (audio sampling_rate, decode=False)",
+      "body": "### Describe the bug\n\nSince #8791, `load_dataset(..., streaming=True)` decodes media in worker threads by default when the dataset is on the Hub. The threaded decoding is a `map` step created by `IterableDataset.decode(num_threads=...)`, so the examples coming out of the dataset are already decoded.\n\n`IterableDataset.cast_column` and `IterableDataset.cast` only replace `info.features`. They do not touch that decoding step, so a cast that changes how a column is decoded has no effect on the data:\n\n* `ds.cast_column(\"audio\", Audio(sampling_rate=16000))` reports `Audio(sampling_rate=16000)` in `ds.features`, but the audio is still decoded at the file's original sampling rate. Since `Audio.decode_example` now returns already decoded values as is, nothing resamples it later. This is silent.\n* `ds.cast_column(\"image\", Image(decode=False))` still yields `PIL.Image` objects instead of `{\"path\": ..., \"bytes\": ...}`.\n\nThe `decode` docstring says `.decode(False)` is equivalent to casting the features with `decode=False`, and `cast_column(\"audio\", Audio(sampling_rate=16000))` is the documented way to resample a streamed audio dataset, so both patterns are common.\n\nThis is on `main` only (not in 5.1.0).\n\n### Steps to reproduce the bug\n\nWithout network access, by setting the builder `base_path` the way it is set for a Hub dataset:\n\n```python\nimport os, wave\nimport numpy as np\nfrom datasets import load_dataset_builder, Audio\n\nos.makedirs(\"auds\", exist_ok=True)\nfor i in range(3):\n    with wave.open(f\"auds/a_{i}.wav\", \"wb\") as w:\n        w.setnchannels(1); w.setsampwidth(2); w.setframerate(8000)\n        w.writeframes(np.zeros(8000, dtype=np.int16).tobytes())\n\nb = load_dataset_builder(\"audiofolder\", data_files=\"auds/*.wav\")\nb.base_path = \"hf://datasets/user/repo\"  # what load_dataset sets for a Hub dataset\nds = b.as_streaming_dataset(split=\"train\").cast_column(\"audio\", Audio(sampling_rate=16000))\nprint(ds.features[\"audio\"])  # Audio(sampling_rate=16000, ...)\nprint(next(iter(ds))[\"audio\"].get_all_samples().sample_rate)  # 8000\n```\n\nOr directly:\n\n```python\nds = load_dataset(\"audiofolder\", data_files=\"auds/*.wav\", split=\"train\", streaming=True)\nds = ds.decode(num_threads=2).cast_column(\"audio\", Audio(sampling_rate=16000))\nprint(next(iter(ds))[\"audio\"].get_all_samples().sample_rate)  # 8000\n```\n\n### Expected behavior\n\nThe cast features are used to decode the examples: audio resampled to 16000 Hz, and `Image(decode=False)` columns returned as `{\"path\", \"bytes\"}` dicts, exactly as with `num_threads=0`.\n\n### Root cause\n\n`IterableDataset.decode(num_threads=n)` casts the dataset to features with decoding disabled, then adds a `map` that runs `features.decode_example` in a thread pool. `cast` and `cast_column` build a new `IterableDataset` on top of that `map`, so the decoding step keeps using the features it was created with. `decode()` itself already handles this case: when called again, it rebuilds from the dataset the decoding step was created on (`MappedExamplesIterable.decoding_pool`). `cast` and `cast_column` need the same treatment.\n\n### Environment info\n\n- `datasets` main (18378f7)\n- Python 3.12, macOS\n- torchcodec 0.17.0",
+      "author": "sebxt",
+      "state": "open",
+      "created_at": "2026-10-18T13:29:47+00:00",
+      "updated_at": "2026-10-18T13:29:47+00:00",
+      "closed_at": null,
+      "comments_count": 0,
+      "url": "https://github.com/huggingface/datasets/issues/8849"
+    },
+    {
+      "number": 8719,
+      "title": "concatenate_datasets(axis=1) crashes on arrow-backed IterableDatasets with different lengths",
+      "body": "### Describe the bug\n\nHorizontally concatenating two arrow-backed `IterableDataset`s (for example from `Dataset.to_iterable_dataset()` or a streamed Parquet/Arrow dataset) raises `pyarrow.lib.ArrowInvalid` when the sources have different numbers of rows. The error happens as soon as the result is iterated, through `list(ds)`, `.iter()`, `.with_format(\"arrow\")` and so on.\n\nThe arrow fast path, `HorizontallyConcatenatedMultiSourcesExamplesIterable._iter_arrow`, appends the shorter source's columns to the current table without padding them:\n\n```python\nfor name, col in zip(table.column_names, table.columns):\n    new_pa_table = new_pa_table.append_column(name, col)\n```\n\nThe Python path of the same class (`__iter__`) handles unequal lengths and fills the missing rows with `None`.\n\n@Vedant-Agarwal pointed out this gap when he closed #8335 ([comment](https://github.com/huggingface/datasets/pull/8335#issuecomment-4981777138)), but there is no issue tracking it.\n\n### Steps to reproduce the bug\n\n```python\nfrom datasets import Dataset, concatenate_datasets\n\nds1 = Dataset.from_dict({\"a\": [0, 1, 2, 3, 4]}).to_iterable_dataset()\nds2 = Dataset.from_dict({\"b\": [0, 1, 2]}).to_iterable_dataset()\n\nds = concatenate_datasets([ds1, ds2], axis=1)\nlist(ds)\n```\n\n```\n  File \".../datasets/iterable_dataset.py\", line 1190, in _iter_arrow\n    new_pa_table = new_pa_table.append_column(name, col)\n  ...\npyarrow.lib.ArrowInvalid: Added column's length must match table's length. Expected length 5 but got length 3\n```\n\nLarger datasets hit the same error. Both sources are rebatched to the same batch size, so only the last partial batch of the shorter source is mismatched. For example, 2500 rows against 1200 rows fails with `Expected length 1000 but got length 200`.\n\nIf one of the sources goes through `.map(...)` first, the Python path is used instead, and the same call returns 5 rows with `b=None` for the last two.\n\n### Expected behavior\n\n```python\n[{'a': 0, 'b': 0}, {'a': 1, 'b': 1}, {'a': 2, 'b': 2}, {'a': 3, 'b': None}, {'a': 4, 'b': None}]\n```\n\nThat is what the Python path returns, and it matches the documented behavior:\n- The `_concatenate_iterable_datasets` docstring says: \"Missing data are filled with None values.\"\n- `test_concatenate_datasets_axis_1_with_different_lengths` asserts that missing rows \"should be replaced with nulls\".\n\nMap-style `concatenate_datasets(axis=1)` raises `ValueError: Number of rows must match` instead. If you would rather have iterable datasets raise as well, the two iterable paths should still agree with each other. Today the result depends on whether the sources happen to be arrow-backed.\n\nSuggested fix: in `_iter_arrow`, pad each shorter table in the current round with nulls (`pa.nulls(n, field.type)`) up to the longest table before appending its columns. Once a source is exhausted, its columns are already filled with None when the dataset features are applied. I have this fix with a regression test ready and can open a PR.\n\n### Environment info\n\n- `datasets` version: 5.0.2.dev0 (main @ b74f511)\n- Platform: macOS-26.5-arm64-arm-64bit\n- Python version: 3.12.13\n- `pyarrow` version: 25.0.1\n\n---\n_AI assistance: drafted with an AI coding assistant (Claude). The reproduction above was run locally against the current default branch._\n",
+      "author": "Zhuoxi2000",
+      "state": "open",
+      "created_at": "2026-10-01T15:19:02+00:00",
+      "updated_at": "2026-10-18T10:37:30+00:00",
+      "closed_at": null,
+      "comments_count": 1,
+      "url": "https://github.com/huggingface/datasets/issues/8719"
+    },
+    {
+      "number": 8713,
+      "title": "JSON loader turns strings like \"123\" or \"null\" into other types in inferred Json columns",
+      "body": "When a JSON Lines column mixes objects and strings, `load_dataset(\"json\")` infers `Json()` for it, and any string in that column that happens to be valid JSON comes back decoded.\n\nFor example rows `{\"a\": {\"b\": 1}}`, `{\"a\": \"123\"}`, `{\"a\": \"null\"}`, `{\"a\": \"true\"}`, `{\"a\": \"hello\"}` load back as `{'b': 1}, 123, None, True, 'hello'` instead of keeping the strings. Only \"hello\" survives because it isn't valid JSON.\n\nIt shows up with chat data where `content` is sometimes a string and sometimes a list of parts. With `{\"messages\": [{\"role\": \"user\", \"content\": \"what is 2+2\"}, {\"role\": \"assistant\", \"content\": \"4\"}]}` next to a row that has list content, the assistant answer comes back as the int 4.\n\nThe cause is `json_encode_field` assuming a string that parses as JSON is already encoded. That makes sense for user-declared `features=Json()`, where people pass pre-encoded strings, but on the inferred path the values were just decoded from the file, so a string there is always a real string.\n\nI have a small fix that only changes the inferred path (when no features are passed) and leaves `features=Json()` as is. With it the example above round trips exactly, including through `to_json` and back, and in streaming mode. One thing it doesn't cover is re-encoding after a `.map()`, which still uses the same heuristic; changing that felt like your call. Happy to open the PR if the scoped approach sounds fine.\n\nTested on main (fa995bd).\n",
+      "author": "u7k4rs6",
+      "state": "open",
+      "created_at": "2026-09-30T10:45:57+00:00",
+      "updated_at": "2026-10-18T10:37:29+00:00",
+      "closed_at": null,
+      "comments_count": 1,
+      "url": "https://github.com/huggingface/datasets/issues/8713"
+    },
+    {
+      "number": 8617,
+      "title": "`SplitDict.copy()` crashes when `dataset_name` is not set",
+      "body": "## Description\n\n`SplitDict.copy()` (and `SplitDict.from_split_dict`) crashes with\n`AttributeError: 'SplitInfo' object has no attribute 'get'` whenever the split\ndict contains `SplitInfo` objects and `dataset_name` is `None`.\n\n## Reproduction\n\n```python\nfrom datasets import SplitDict, SplitInfo\n\nsplit_dict = SplitDict({\"train\": SplitInfo(name=\"train\", num_bytes=1337, num_examples=42)})\nsplit_dict.copy()\n```\n\nTraceback:\n\n```\nFile \".../datasets/splits.py\", line 574, in from_split_dict\n    dataset_name = split_infos[0].get(\"dataset_name\") if split_infos else None\nAttributeError: 'SplitInfo' object has no attribute 'get'\n```\n\n## Expected behavior\n\n`copy()` should work for `SplitDict` instances holding `SplitInfo` objects,\nwhich is the normal state after construction (e.g. from a dataset's info).\nThe method should read `dataset_name` from `SplitInfo.dataset_name` when the\nentries are `SplitInfo` objects, and only fall back to `.get()` for raw\ndictionaries.\n\n## Environment\n\n- `datasets` version: 5.0.2.dev0 (main, d336dcb)\n- Python: 3.11\n",
+      "author": "betacatsling",
+      "state": "open",
+      "created_at": "2026-09-14T11:12:15+00:00",
+      "updated_at": "2026-10-18T10:37:28+00:00",
+      "closed_at": null,
+      "comments_count": 1,
+      "url": "https://github.com/huggingface/datasets/issues/8617"
+    },
+    {
+      "number": 8681,
+      "title": "Casting `large_string` / `string_view` to ClassLabel fails, so `Dataset.from_pandas(df, features=ClassLabel)` breaks with pandas 3",
+      "body": "### Describe the bug\n\n`ClassLabel.cast_storage` only maps label strings to ids when the storage is a `pa.StringArray` (`src/datasets/features/features.py`, ~L1195: `elif isinstance(storage, pa.StringArray):`). `pa.LargeStringArray` and `pa.StringViewArray` are not subclasses of it, so they skip the mapping and go straight to an int64 cast, which fails.\n\nThis matters now because in pandas 3 a plain `str` column is converted to `large_string`, so the common pattern `Dataset.from_pandas(df, features=Features({\"label\": ClassLabel(names=[...])}))` fails for string labels. The same frame works with `.astype(object)`. `cast_column(..., ClassLabel(...))` also fails on `Value(\"large_string\")` and `Value(\"string_view\")` columns but works on `Value(\"string\")`. `class_encode_column` still works because it uses a different path.\n\n*(Disclosure: this report was prepared with an AI assistant (Claude), which ran the reproduction; posted by me.)*\n\n### Steps to reproduce the bug\n\n```python\nimport pandas as pd\nfrom datasets import Dataset, ClassLabel, Features, Value\n\nfeats = Features({\"label\": ClassLabel(names=[\"neg\", \"pos\"])})\ndf = pd.DataFrame({\"label\": [\"neg\", \"pos\", \"neg\"]})\n\nprint(Dataset.from_pandas(df.astype(object), features=feats)[\"label\"][:])  # [0, 1, 0]\nDataset.from_pandas(df, features=feats)\n# ArrowInvalid: Failed to parse string: 'neg' as a scalar of type int64\n\nfor t in [\"string\", \"large_string\", \"string_view\"]:\n    ds = Dataset.from_dict({\"label\": [\"neg\", \"pos\"]}, features=Features({\"label\": Value(t)}))\n    try:\n        print(t, ds.cast_column(\"label\", ClassLabel(names=[\"neg\", \"pos\"]))[\"label\"][:])\n    except Exception as e:\n        print(t, type(e).__name__, e)\n# string [0, 1]\n# large_string ArrowInvalid Failed to parse string: 'pos' as a scalar of type int64\n# string_view ArrowInvalid Failed to parse string: 'pos' as a scalar of type int64\n```\n\n### Expected behavior\n\nString labels are mapped to class ids (`[0, 1, 0]`) for every Arrow string type, the same as for `pa.string()`.\n\nA possible fix is to check `pa.types.is_string(...) or pa.types.is_large_string(...) or pa.types.is_string_view(...)` in `ClassLabel.cast_storage` (or cast the storage to `pa.string()` first), and parametrize `test_classlabel_cast_storage` over the three string types. I'd be happy to open a PR with that.\n\n### Environment info\n\n- `datasets` version: main @ a4ee9cf (5.0.2.dev0)\n- pandas 3.0.6, pyarrow 25.0.1\n- Python 3.11, Linux",
+      "author": "lucaluo925",
+      "state": "open",
+      "created_at": "2026-09-24T20:03:05+00:00",
+      "updated_at": "2026-10-18T10:37:27+00:00",
+      "closed_at": null,
+      "comments_count": 0,
+      "url": "https://github.com/huggingface/datasets/issues/8681"
+    },
+    {
+      "number": 8709,
+      "title": "string_to_dict maps fields to unrelated regex capture groups",
+      "body": "## Problem\n\n`string_to_dict` creates named groups for format fields, but builds the result by zipping field names with every regex capture. An unrelated capturing group shifts the values.\n\n## Reproduction\n\n```python\nfrom datasets.utils.py_utils import string_to_dict\nprint(string_to_dict(\"train/alice\", \"(train|test)/{name}\"))\n# actual: {\"name\": \"train\"}; expected: {\"name\": \"alice\"}\n```\n\n## Candidate change\n\nAfter the existing no-match check and pattern normalization, replace `values = list(result.groups())` and `dict(zip(keys, values))` with:\n\n```python\nkeys = re.findall(r\"{(.+?)}\", pattern)\n_dict = {key: result.group(f\"_{key}\") for key in keys}\n```\n\nThis reads the named groups the helper already generates.\n\n## Validation\n\nCurrent source `src/datasets/utils/py_utils.py`, blob `df6d7b977b554cf772eeb32dcdf8dc5f0b0f2f4c`, checked against the prepared reproduction. An isolated helper harness on Python 3.12.14 had 5 failed/5 passed before and 10 passed after the candidate change. Cases cover extra positional/named/nested regex groups, multiple format fields, numeric format specifications, noncapturing groups, and no match. This is helper-level validation, not a full installed-package or repository test run.\n\nI searched existing issues and PRs for this helper. Related path-pattern changes such as #6322 do not address capture-group-to-field mapping.",
+      "author": "Afloat16",
+      "state": "open",
+      "created_at": "2026-09-29T08:17:13+00:00",
+      "updated_at": "2026-10-18T07:59:09+00:00",
+      "closed_at": null,
+      "comments_count": 2,
+      "url": "https://github.com/huggingface/datasets/issues/8709"
+    },
+    {
+      "number": 8830,
+      "title": "ClassLabel.cast_storage fails on a pandas Categorical column (dictionary-encoded Arrow storage)",
+      "body": "### Describe the bug\n\n`Dataset.from_pandas(df, features=...)` fails when the label column of the DataFrame is a pandas `Categorical` and the feature is a `ClassLabel`. pandas hands the column to Arrow as a `DictionaryArray` (`dictionary<values=large_string, indices=int8>`), and `ClassLabel.cast_storage` only knows `pa.StringArray` and `pa.IntegerArray`; anything else goes to `array_cast(storage, pa.int64())`, so Arrow tries to parse the category names as integers:\n\n```\npyarrow.lib.ArrowInvalid: Failed to parse string: 'positive' as a scalar of type int64\n```\n\nThe same happens with `load_dataset(\"parquet\", data_files=..., features=...)` on a Parquet file written from such a DataFrame (the column is stored dictionary-encoded), and with `ClassLabel.cast_storage` called directly on a dictionary array. Without `features`, both `from_pandas` and the Parquet loader work, because the plain string cast lets Arrow decode the dictionary itself.\n\n### Steps to reproduce the bug\n\n```python\nimport pandas as pd\nfrom datasets import ClassLabel, Dataset, Features\n\ndf = pd.DataFrame({\"label\": pd.Categorical([\"positive\", \"negative\", None])})\nfeatures = Features({\"label\": ClassLabel(names=[\"negative\", \"positive\"])})\nDataset.from_pandas(df, features=features)\n# pyarrow.lib.ArrowInvalid: Failed to parse string: 'positive' as a scalar of type int64\n```\n\nDirectly:\n\n```python\nimport pyarrow as pa\nfeatures[\"label\"].cast_storage(pa.array(pd.Categorical([\"positive\", \"negative\"])))\n```\n\n### Expected behavior\n\nThe categorical column becomes the `ClassLabel` column, with each category mapped by name (`[1, 0, None]` here) and a categorical of label ids range-checked like an integer column, the same as a plain string or integer column would be.\n\n### Environment info\n\n- `datasets` 5.1.1.dev0 (main at 18378f732), also on 5.1.0\n- Python 3.12.3, Linux x86_64\n- pyarrow 26.0.0, pandas 3.0.6\n",
+      "author": "mertkayacs",
+      "state": "open",
+      "created_at": "2026-10-17T23:27:11+00:00",
+      "updated_at": "2026-10-18T07:56:15+00:00",
+      "closed_at": null,
+      "comments_count": 1,
+      "url": "https://github.com/huggingface/datasets/issues/8830"
+    },
+    {
+      "number": 6948,
+      "title": "to_tf_dataset: Visible devices cannot be modified after being initialized",
+      "body": "### Describe the bug\n\nWhen trying to use to_tf_dataset with a custom data_loader collate_fn when I use parallelism I am met with the following error as many times as number of workers there were in ``num_workers``.\r\n\r\n  File \"/opt/miniconda/envs/env/lib/python3.11/site-packages/multiprocess/process.py\", line 314, in _bootstrap\r\n    self.run()\r\n  File \"/opt/miniconda/envs/env/lib/python3.11/site-packages/multiprocess/process.py\", line 108, in run\r\n    self._target(*self._args, **self._kwargs)\r\n  File \"/opt/miniconda/envs/env/lib/python3.11/site-packages/datasets/utils/tf_utils.py\", line 438, in worker_loop\r\n    tf.config.set_visible_devices([], \"GPU\")  # Make sure workers don't try to allocate GPU memory\r\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\r\n  File \"/opt/miniconda/envs/env/lib/python3.11/site-packages/tensorflow/python/framework/config.py\", line 566, in set_visible_devices\r\n    context.context().set_visible_devices(devices, device_type)\r\n  File \"/opt/miniconda/envs/env/lib/python3.11/site-packages/tensorflow/python/eager/context.py\", line 1737, in set_visible_devices\r\n    raise RuntimeError(\r\nRuntimeError: Visible devices cannot be modified after being initialized\n\n### Steps to reproduce the bug\n\n1. Download a dataset using HuggingFace load_dataset\r\n2. Define a function that transforms the data in some way to be used in the collate_fn argument\r\n3. Provide a ``batch_size`` and ``num_workers`` value in the ``to_tf_dataset`` function\r\n4. Either retrieve directly or use tfds benchmark to test the dataset\r\n\r\n``` python\r\nfrom datasets import load_datasets\r\nimport tensorflow_datasets as tfds\r\nfrom keras_cv.layers import Resizing\r\n\r\ndef data_loader(examples):\r\n      x = Resizing(examples[0]['image'], 256, 256, crop_to_aspect_ratio=True)\r\n      return {X[0]: x}\r\n\r\nds = load_datasets(\"logasja/FDF\", split=\"test\")\r\n\r\nds = ds.to_tf_dataset(collate_fn=data_loader, batch_size=16, num_workers=2)\r\n\r\ntfds.benchmark(ds)\r\n```\n\n### Expected behavior\n\nUse multiple processes to apply transformations from the collate_fn to the tf dataset on the CPU.\n\n### Environment info\n\n- `datasets` version: 2.19.1\r\n- Platform: Linux-6.5.0-1023-oracle-x86_64-with-glibc2.35\r\n- Python version: 3.11.8\r\n- `huggingface_hub` version: 0.22.2\r\n- PyArrow version: 15.0.2\r\n- Pandas version: 2.2.1\r\n- `fsspec` version: 2024.2.0",
+      "author": "logasja",
+      "state": "open",
+      "created_at": "2024-06-03T18:10:57+00:00",
+      "updated_at": "2026-10-18T03:20:48+00:00",
+      "closed_at": null,
+      "comments_count": 1,
+      "url": "https://github.com/huggingface/datasets/issues/6948"
+    },
+    {
+      "number": 7390,
+      "title": "Re-add py.typed",
+      "body": "### Feature request\n\nThe motivation for removing py.typed no longer seems to apply.  Would a solution like [this one](https://github.com/huggingface/huggingface_hub/pull/2752) work here?\n\n### Motivation\n\nMyPy support is broken.  As more type checkers come out, such as RedKnot, these may also be broken.  It would be good to be PEP 561 compliant as long as it's not too onerous.\n\n### Your contribution\n\nI can re-add py.typed, but I don't know how to make sur all of the `__all__` files are provided (although you may not need to with modern PyRight).",
+      "author": "NeilGirdhar",
+      "state": "open",
+      "created_at": "2025-02-10T22:12:52+00:00",
+      "updated_at": "2026-10-18T03:17:18+00:00",
+      "closed_at": null,
+      "comments_count": 2,
+      "url": "https://github.com/huggingface/datasets/issues/7390"
+    },
+    {
+      "number": 7088,
+      "title": "Disable warning when using with_format format on tensors",
+      "body": "### Feature request\n\nIf we write this code: \r\n\r\n```python\r\n\"\"\"Get data and define datasets.\"\"\"\r\n\r\nfrom enum import StrEnum\r\nfrom datasets import load_dataset\r\nfrom torch.utils.data import DataLoader\r\nfrom torchvision import transforms\r\n\r\n\r\nclass Split(StrEnum):\r\n    \"\"\"Describes what type of split to use in the dataloader\"\"\"\r\n\r\n    TRAIN = \"train\"\r\n    TEST = \"test\"\r\n    VAL = \"validation\"\r\n\r\n\r\nclass ImageNetDataLoader(DataLoader):\r\n    \"\"\"Create an ImageNetDataloader\"\"\"\r\n\r\n    _preprocess_transform = transforms.Compose(\r\n        [\r\n            transforms.Resize(256),\r\n            transforms.CenterCrop(224),\r\n        ]\r\n    )\r\n\r\n    def __init__(self, batch_size: int = 4, split: Split = Split.TRAIN):\r\n        dataset = (\r\n            load_dataset(\r\n                \"imagenet-1k\",\r\n                split=split,\r\n                trust_remote_code=True,\r\n                streaming=True,\r\n            )\r\n            .with_format(\"torch\")\r\n            .map(self._preprocess)\r\n        )\r\n\r\n        super().__init__(dataset=dataset, batch_size=batch_size)\r\n\r\n    def _preprocess(self, data):\r\n        if data[\"image\"].shape[0] < 3:\r\n            data[\"image\"] = data[\"image\"].repeat(3, 1, 1)\r\n        data[\"image\"] = self._preprocess_transform(data[\"image\"].float())\r\n        return data\r\n\r\n\r\nif __name__ == \"__main__\":\r\n\r\n    dataloader = ImageNetDataLoader(batch_size=2)\r\n    for batch in dataloader:\r\n        print(batch[\"image\"])\r\n        break\r\n```\r\nThis will trigger an user warning : \r\n\r\n```bash\r\ndatasets\\formatting\\torch_formatter.py:85: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).\r\n  return torch.tensor(value, **{**default_dtype, **self.torch_tensor_kwargs})\r\n```\n\n### Motivation\n\nThis happens because the the way the formatted tensor is returned in `TorchFormatter._tensorize`.\r\nThis function handle values of different types, according to some tests it seems that possible value types are `int`, `numpy.ndarray` and `torch.Tensor`.\r\nIn particular this warning is triggered when the value type is `torch.Tensor`, because is not the suggested Pytorch way of doing it:\r\n\r\n- https://stackoverflow.com/questions/55266154/pytorch-preferred-way-to-copy-a-tensor\r\n- https://discuss.pytorch.org/t/it-is-recommended-to-use-source-tensor-clone-detach-or-sourcetensor-clone-detach-requires-grad-true/101218#:~:text=The%20warning%20points%20to%20wrapping%20a%20tensor%20in%20torch.tensor%2C%20which%20is%20not%20recommended.%0AInstead%20of%20torch.tensor(outputs)%20use%20outputs.clone().detach()%20or%20the%20same%20with%20.requires_grad_(True)%2C%20if%20necessary.\r\n\r\n\n\n### Your contribution\n\nA solution that I found to be working is to change the current way of doing it: \r\n\r\n```python\r\nreturn torch.tensor(value, **{**default_dtype, **self.torch_tensor_kwargs})\r\n```\r\n\r\nTo:\r\n\r\n```python\r\nif (isinstance(value, torch.Tensor)):\r\n    tensor = value.clone().detach()\r\n    if self.torch_tensor_kwargs.get('requires_grad', False): \r\n        tensor.requires_grad_()\r\n    return tensor\r\nelse:\r\n    return torch.tensor(value, **{**default_dtype, **self.torch_tensor_kwargs})\r\n```",
+      "author": "Haislich",
+      "state": "open",
+      "created_at": "2024-08-05T00:45:50+00:00",
+      "updated_at": "2026-10-18T03:15:30+00:00",
+      "closed_at": null,
+      "comments_count": 1,
+      "url": "https://github.com/huggingface/datasets/issues/7088"
+    },
+    {
+      "number": 7444,
+      "title": "Excessive warnings when resuming an IterableDataset+buffered shuffle+DDP.",
+      "body": "### Describe the bug\n\nI have a large dataset that I shared into 1024 shards and save on the disk during pre-processing. During training, I load the dataset using load_from_disk() and convert it into an iterable dataset, shuffle it and split the shards to different DDP nodes using the recommended method.\n\nHowever, when the training is resumed mid-epoch, I get thousands of identical warning messages:\n\n```\nLoading a state dict of a shuffle buffer of a dataset without the buffer content.The shuffle buffer will be refilled before starting to yield new examples.\n```\n\n\n\n### Steps to reproduce the bug\n\n1. Run a multi-node training job using the following python script and interrupt the training after a few seconds to save a mid-epoch checkpoint.\n\n```python\n#!/usr/bin/env python\nimport os\nimport time\nfrom typing import Dict, List\nimport torch\nimport lightning as pl\nfrom torch.utils.data import DataLoader\nfrom datasets import Dataset\nfrom datasets.distributed import split_dataset_by_node\nimport datasets\nfrom transformers import AutoTokenizer\nfrom more_itertools import flatten, chunked\nfrom torchdata.stateful_dataloader import StatefulDataLoader\nfrom lightning.pytorch.callbacks.on_exception_checkpoint import (\n    OnExceptionCheckpoint,\n)\n\ndatasets.logging.set_verbosity_debug()\n\n\ndef dummy_generator():\n    # Generate 60 examples: integers from $0$ to $59$\n    # 64 sequences of different lengths\n    dataset = [\n        list(range(3, 10)),\n        list(range(10, 15)),\n        list(range(15, 21)),\n        list(range(21, 27)),\n        list(range(27, 31)),\n        list(range(31, 36)),\n        list(range(36, 45)),\n        list(range(45, 50)),\n    ]\n    for i in range(8):\n        for j, ids in enumerate(dataset):\n            yield {\"token_ids\": [idx + i * 50 for idx in ids]}\n\n\ndef group_texts(\n    examples: Dict[str, List[List[int]]],\n    block_size: int,\n    eos_token_id: int,\n    bos_token_id: int,\n    pad_token_id: int,\n) -> Dict[str, List[List[int]]]:\n    real_block_size = block_size - 2  # make space for bos and eos\n    # colapse the sequences into a single list of tokens and then create blocks of real_block_size\n    input_ids = []\n    attention_mask = []\n    for block in chunked(flatten(examples[\"token_ids\"]), real_block_size):\n        s = [bos_token_id] + list(block) + [eos_token_id]\n        ls = len(s)\n        attn = [True] * ls\n        s += [pad_token_id] * (block_size - ls)\n        attn += [False] * (block_size - ls)\n        input_ids.append(s)\n        attention_mask.append(attn)\n\n    return {\"input_ids\": input_ids, \"attention_mask\": attention_mask}\n\n\ndef collate_fn(batch):\n    return {\n        \"input_ids\": torch.tensor(\n            [item[\"input_ids\"] for item in batch], dtype=torch.long\n        ),\n        \"attention_mask\": torch.tensor(\n            [item[\"attention_mask\"] for item in batch], dtype=torch.long\n        ),\n    }\n\n\nclass DummyModule(pl.LightningModule):\n\n    def __init__(self):\n        super().__init__()\n        # A dummy linear layer (not used for actual computation)\n        self.layer = torch.nn.Linear(1, 1)\n        self.ds = None\n        self.prepare_data_per_node = False\n\n    def on_train_start(self):\n        # This hook is called once training begins on each process.\n        print(f\"[Rank {self.global_rank}] Training started.\", flush=True)\n        self.data_file = open(f\"data_{self.global_rank}.txt\", \"w\")\n\n    def on_train_end(self):\n        self.data_file.close()\n\n    def training_step(self, batch, batch_idx):\n        # Print batch information to verify data loading.\n        time.sleep(5)\n        # print(\"batch\", batch, flush=True)\n        print(\n            f\"\\n[Rank {self.global_rank}] Training step, epoch {self.trainer.current_epoch}, batch {batch_idx}: {batch['input_ids']}\",\n            flush=True,\n        )\n        self.data_file.write(\n            f\"[Rank {self.global_rank}] Training step, epoch {self.trainer.current_epoch}, batch {batch_idx}: {batch['input_ids']}\\n\"\n        )\n        # Compute a dummy loss (here, simply a constant tensor)\n        loss = torch.tensor(0.0, requires_grad=True)\n        return loss\n\n    def on_train_epoch_start(self):\n        epoch = self.trainer.current_epoch\n        print(\n            f\"[Rank {self.global_rank}] Training epoch {epoch} started.\",\n            flush=True,\n        )\n        self.data_file.write(\n            f\"[Rank {self.global_rank}] Training epoch {epoch} started.\\n\"\n        )\n\n    def configure_optimizers(self):\n        # Return a dummy optimizer.\n        return torch.optim.SGD(self.parameters(), lr=0.001)\n\n\nclass DM(pl.LightningDataModule):\n    def __init__(self):\n        super().__init__()\n        self.ds = None\n        self.prepare_data_per_node = False\n\n    def set_epoch(self, epoch: int):\n        self.ds.set_epoch(epoch)\n\n    def prepare_data(self):\n        # download the dataset\n        dataset = Dataset.from_generator(dummy_generator)\n        # save the dataset\n        dataset.save_to_disk(\"dataset\", num_shards=4)\n\n    def setup(self, stage: str):\n        # load the dataset\n        ds = datasets.load_from_disk(\"dataset\").to_iterable_dataset(\n            num_shards=4\n        )\n        ds = ds.map(\n            group_texts,\n            batched=True,\n            batch_size=5,\n            fn_kwargs={\n                \"block_size\": 5,\n                \"eos_token_id\": 1,\n                \"bos_token_id\": 0,\n                \"pad_token_id\": 2,\n            },\n            remove_columns=[\"token_ids\"],\n        ).shuffle(seed=42, buffer_size=8)\n        ds = split_dataset_by_node(\n            ds,\n            rank=self.trainer.global_rank,\n            world_size=self.trainer.world_size,\n        )\n        self.ds = ds\n\n    def train_dataloader(self):\n        print(\n            f\"[Rank {self.trainer.global_rank}] Preparing train_dataloader...\",\n            flush=True,\n        )\n        rank = self.trainer.global_rank\n        print(\n            f\"[Rank {rank}] Global rank: {self.trainer.global_rank}\",\n            flush=True,\n        )\n        world_size = self.trainer.world_size\n        print(f\"[Rank {rank}] World size: {world_size}\", flush=True)\n        return StatefulDataLoader(\n            self.ds,\n            batch_size=2,\n            num_workers=2,\n            collate_fn=collate_fn,\n            drop_last=True,\n            persistent_workers=True,\n        )\n\n\nif __name__ == \"__main__\":\n    print(\"Starting Lightning training\", flush=True)\n    # Optionally, print some SLURM environment info for debugging.\n    print(f\"SLURM_NNODES: {os.environ.get('SLURM_NNODES', '1')}\", flush=True)\n\n    # Determine the number of nodes from SLURM (defaulting to 1 if not set)\n    num_nodes = int(os.environ.get(\"SLURM_NNODES\", \"1\"))\n    model = DummyModule()\n    dm = DM()\n    on_exception = OnExceptionCheckpoint(\n        dirpath=\"checkpoints\",\n        filename=\"on_exception\",\n    )\n\n    # Configure the Trainer to use distributed data parallel (DDP).\n    trainer = pl.Trainer(\n        accelerator=\"gpu\" if torch.cuda.is_available() else \"cpu\",\n        devices=1,\n        strategy=(\n            \"ddp\" if num_nodes > 1 else \"auto\"\n        ),  # Use DDP strategy for multi-node training.\n        num_nodes=num_nodes,\n        max_epochs=2,\n        logger=False,\n        enable_checkpointing=True,\n        num_sanity_val_steps=0,\n        enable_progress_bar=False,\n        callbacks=[on_exception],\n    )\n\n    # resume (uncomment to resume)\n    # trainer.fit(model, datamodule=dm, ckpt_path=\"checkpoints/on_exception.ckpt\")\n    # train\n\n    trainer.fit(model, datamodule=dm)\n```\n\n\n\n```bash\n#!/bin/bash\n#SBATCH --job-name=pl_ddp_test\n#SBATCH --nodes=2                     # Adjust number of nodes as needed\n#SBATCH --ntasks-per-node=1           # One GPU (process) per node\n#SBATCH --cpus-per-task=3             # At least as many dataloader workers as required\n#SBATCH --gres=gpu:1                  # Request one GPU per node\n#SBATCH --time=00:10:00               # Job runtime (adjust as needed)\n#SBATCH --partition=gpu-preempt               # Partition or queue name\n#SBATCH -o script.out\n\n# Disable Python output buffering.\nexport PYTHONUNBUFFERED=1\n\necho \"SLURM job starting on $(date)\"\necho \"Running on nodes: $SLURM_NODELIST\"\necho \"Current directory: $(pwd)\"\nls -l\n\n# Launch the script using srun so that each process starts the Lightning module.\nsrun script.py\n```\n2. Uncomment the \"resume\" line (second to last) and comment the original `trainer.fit` call (last line). \nIt will produce the following log.\n```\n[Rank 0] Preparing train_dataloader...\n[Rank 0] Global rank: 0\n[Rank 0] World size: 2\n[Rank 1] Preparing train_dataloader...\n[Rank 1] Global rank: 1\n[Rank 1] World size: 2\nLoading a state dict of a shuffle buffer of a dataset without the buffer content.The shuffle buffer will be refilled before starting to yield new examples.\nLoading a state dict of a shuffle buffer of a dataset without the buffer content.The shuffle buffer will be refilled before starting to yield new examples.\nLoading a state dict of a shuffle buffer of a dataset without the buffer content.The shuffle buffer will be refilled before starting to yield new examples.\nAssigning 2 shards (or data sources) of the dataset to each node.\nLoading a state dict of a shuffle buffer of a dataset without the buffer content.The shuffle buffer will be refilled before starting to yield new examples.\nLoading a state dict of a shuffle buffer of a dataset without the buffer content.The shuffle buffer will be refilled before starting to yield new examples.\nnode#0 dataloader worker#1, ': Starting to iterate over 1/2 shards.\nLoading a state dict of a shuffle buffer of a dataset without the buffer content.The shuffle buffer will be refilled before starting to yield new examples.\nnode#0 dataloader worker#0, ': Starting to iterate over 1/2 shards.\nLoading a state dict of a shuffle buffer of a dataset without the buffer content.The shuffle buffer will be refilled before starting to yield new examples.\nSet __getitem__(key) output type to arrow for no columns  (when key is int or slice) and don't output other (un-formatted) columns.\nSet __getitem__(key) output type to arrow for no columns  (when key is int or slice) and don't output other (un-formatted) columns.\nnode#0 dataloader worker#1, ': Finished iterating over 1/1 shards.\nnode#0 dataloader worker#0, ': Finished iterating over 1/1 shards.\nLoading a state dict of a shuffle buffer of a dataset without the buffer content.The shuffle buffer will be refilled before starting to yield new examples.\n[Rank 0] Training started.\n[Rank 0] Training epoch 0 started.\n[Rank 0] Training epoch 1 started.\nAssigning 2 shards (or data sources) of the dataset to each node.\nLoading a state dict of a shuffle buffer of a dataset without the buffer content.The shuffle buffer will be refilled before starting to yield new examples.\nLoading a state dict of a shuffle buffer of a dataset without the buffer content.The shuffle buffer will be refilled before starting to yield new examples.\nnode#0 dataloader worker#1, ': Starting to iterate over 1/2 shards.\nnode#0 dataloader worker#0, ': Starting to iterate over 1/2 shards.\nLoading a state dict of a shuffle buffer of a dataset without the buffer content.The shuffle buffer will be refilled before starting to yield new examples.\nLoading a state dict of a shuffle buffer of a dataset without the buffer content.The shuffle buffer will be refilled before starting to yield new examples.\nLoading a state dict of a shuffle buffer of a dataset without the buffer content.The shuffle buffer will be refilled before starting to yield new examples.\nLoading a state dict of a shuffle buffer of a dataset without the buffer content.The shuffle buffer will be refilled before starting to yield new examples.\nnode#1 dataloader worker#1, ': Starting to iterate over 1/2 shards.\nLoading a state dict of a shuffle buffer of a dataset without the buffer content.The shuffle buffer will be refilled before starting to yield new examples.\nnode#1 dataloader worker#0, ': Starting to iterate over 1/2 shards.\nLoading a state dict of a shuffle buffer of a dataset without the buffer content.The shuffle buffer will be refilled before starting to yield new examples.\nSet __getitem__(key) output type to arrow for no columns  (when key is int or slice) and don't output other (un-formatted) columns.\nSet __getitem__(key) output type to arrow for no columns  (when key is int or slice) and don't output other (un-formatted) columns.\nnode#0 dataloader worker#1, ': Finished iterating over 1/1 shards.\nnode#0 dataloader worker#0, ': Finished iterating over 1/1 shards.\n`Trainer.fit` stopped: `max_epochs=2` reached.\nSet __getitem__(key) output type to arrow for no columns  (when key is int or slice) and don't output other (un-formatted) columns.\nSet __getitem__(key) output type to arrow for no columns  (when key is int or slice) and don't output other (un-formatted) columns.\nnode#1 dataloader worker#1, ': Finished iterating over 1/1 shards.\nnode#1 dataloader worker#0, ': Finished iterating over 1/1 shards.\n[Rank 1] Training started.\n[Rank 1] Training epoch 0 started.\n[Rank 1] Training epoch 1 started.\nLoading a state dict of a shuffle buffer of a dataset without the buffer content.The shuffle buffer will be refilled before starting to yield new examples.\nLoading a state dict of a shuffle buffer of a dataset without the buffer content.The shuffle buffer will be refilled before starting to yield new examples.\nnode#1 dataloader worker#1, ': Starting to iterate over 1/2 shards.\nnode#1 dataloader worker#0, ': Starting to iterate over 1/2 shards.\nLoading a state dict of a shuffle buffer of a dataset without the buffer content.The shuffle buffer will be refilled before starting to yield new examples.\nLoading a state dict of a shuffle buffer of a dataset without the buffer content.The shuffle buffer will be refilled before starting to yield new examples.\nSet __getitem__(key) output type to arrow for no columns  (when key is int or slice) and don't output other (un-formatted) columns.\nSet __getitem__(key) output type to arrow for no columns  (when key is int or slice) and don't output other (un-formatted) columns.\nnode#1 dataloader worker#0, ': Finished iterating over 1/1 shards.\nnode#1 dataloader worker#1, ': Finished iterating over 1/1 shards.\n```\n\nI'm also attaching the relevant state_dict to make sure that the state is being checkpointed as expected.\n\n```\n{'_iterator_finished': True,\n                                     '_snapshot': {'_last_yielded_worker_id': 1,\n                                                   '_main_snapshot': {'_IterableDataset_len_called': None,\n                                                                      '_base_seed': 3992758080362545099,\n                                                                      '_index_sampler_state': {'samples_yielded': 64},\n                                                                      '_num_workers': 2,\n                                                                      '_sampler_iter_state': None,\n                                                                      '_sampler_iter_yielded': 32,\n                                                                      '_shared_seed': None},\n                                                   '_snapshot_step': 32,\n                                                   '_worker_snapshots': {'worker_0': {'dataset_state': {'ex_iterable': {'shard_example_idx': 0,\n                                                                                                                        'shard_idx': 1},\n                                                                                                        'num_examples_since_previous_state': 0,\n                                                                                                        'previous_state': {'shard_example_idx': 0,\n                                                                                                                           'shard_idx': 1},\n                                                                                                        'previous_state_example_idx': 33},\n                                                                                      'fetcher_state': {'dataset_iter_state': None,\n                                                                                                        'fetcher_ended': False},\n                                                                                      'worker_id': 0},\n                                                                         'worker_1': {'dataset_state': {'ex_iterable': {'shard_example_idx': 0,\n                                                                                                                        'shard_idx': 1},\n                                                                                                        'num_examples_since_previous_state': 0,\n                                                                                                        'previous_state': {'shard_example_idx': 0,\n                                                                                                                           'shard_idx': 1},\n                                                                                                        'previous_state_example_idx': 33},\n                                                                                      'fetcher_state': {'dataset_iter_state': None,\n                                                                                                        'fetcher_ended': False},\n                                                                                      'worker_id': 1}}},\n                                     '_steps_since_snapshot': 0}\n```\n\n### Expected behavior\n\nSince I'm following all the recommended steps, I don't expect to see any warning when resuming. Am I doing something wrong? Also, can someone explain why I'm seeing 20 identical messages in the log in this reproduction setting? I'm trying to understand why I see thousands of these messages with the actual dataset. \n\nOne more surprising thing I noticed in the logs is the change in a number of shards per worker. In the following messages, the denominator changes from 2 to 1.  \n\n```\nnode#1 dataloader worker#1, ': Starting to iterate over 1/2 shards.\n...\nnode#1 dataloader worker#1, ': Finished iterating over 1/1 shards.\n```\n\n### Environment info\n\npython: 3.11.10\ndatasets: 3.3.2\nlightning: 2.3.1\n\n",
+      "author": "dhruvdcoder",
+      "state": "open",
+      "created_at": "2025-03-11T16:34:39+00:00",
+      "updated_at": "2026-10-18T02:52:20+00:00",
+      "closed_at": null,
+      "comments_count": 3,
+      "url": "https://github.com/huggingface/datasets/issues/7444"
+    },
+    {
+      "number": 6865,
+      "title": "Example on Semantic segmentation contains bug",
+      "body": "### Describe the bug\n\nhttps://huggingface.co/docs/datasets/en/semantic_segmentation shows wrong example with torchvision transforms.\r\nSpecifically, as one can see in screenshot below, the object boundaries have weird colors. \r\n\r\n<img width=\"689\" alt=\"image\" src=\"https://github.com/huggingface/datasets/assets/4803565/59aa0e2c-2e3e-415b-9d42-2314044c5aee\">\r\n\r\n\r\nOriginal example with `albumentations` is correct \r\n<img width=\"705\" alt=\"image\" src=\"https://github.com/huggingface/datasets/assets/4803565/27dbd725-cea5-4e48-ba59-7050c3ce17b3\">\r\n\r\n\r\nThat is because `torch vision.transforms.Resize` interpolates with bilinear everything which is wrong when used for segmentation labels - you just cannot mix them. Overall, `torchvision.transforms` is designed for classification only and cannot be used to images and masks together, unless you write two separate branches of augmentations.\r\n\r\n\r\nThe correct way would be to use `v2` version of transforms and convert the segmentation labels to https://pytorch.org/vision/main/generated/torchvision.tv_tensors.Mask.html#torchvision.tv_tensors.Mask object\r\n\r\n\r\n\n\n### Steps to reproduce the bug\n\nGo to the website.\r\n<img width=\"689\" alt=\"image\" src=\"https://github.com/huggingface/datasets/assets/4803565/ea1276d0-d69a-48cf-b9c2-cd61217815ef\">\r\n\r\nhttps://huggingface.co/docs/datasets/en/semantic_segmentation\n\n### Expected behavior\n\nResults, similar to `albumentation`. Or remove the torch vision part altogether. Or use `kornia` instead.\n\n### Environment info\n\nIrrelevant",
+      "author": "ducha-aiki",
+      "state": "open",
+      "created_at": "2024-05-03T09:40:12+00:00",
+      "updated_at": "2026-10-18T02:46:13+00:00",
+      "closed_at": null,
+      "comments_count": 1,
+      "url": "https://github.com/huggingface/datasets/issues/6865"
+    },
+    {
+      "number": 6819,
+      "title": "Give more details in `DataFilesNotFoundError` when getting the config names",
+      "body": "### Feature request\n\nAfter https://huggingface.co/datasets/cis-lmu/Glot500/commit/39060e01272ff228cc0ce1d31ae53789cacae8c3, the dataset viewer gives the following error:\r\n\r\n```\r\n{\r\n  \"error\": \"Cannot get the config names for the dataset.\",\r\n  \"cause_exception\": \"DataFilesNotFoundError\",\r\n  \"cause_message\": \"No (supported) data files found in cis-lmu/Glot500\",\r\n  \"cause_traceback\": [\r\n    \"Traceback (most recent call last):\\n\",\r\n    \" File \\\"/src/services/worker/src/worker/job_runners/dataset/config_names.py\\\", line 73, in compute_config_names_response\\n config_names = get_dataset_config_names(\\n\",\r\n    \" File \\\"/src/services/worker/.venv/lib/python3.9/site-packages/datasets/inspect.py\\\", line 347, in get_dataset_config_names\\n dataset_module = dataset_module_factory(\\n\",\r\n    \" File \\\"/src/services/worker/.venv/lib/python3.9/site-packages/datasets/load.py\\\", line 1873, in dataset_module_factory\\n raise e1 from None\\n\",\r\n    \" File \\\"/src/services/worker/.venv/lib/python3.9/site-packages/datasets/load.py\\\", line 1854, in dataset_module_factory\\n return HubDatasetModuleFactoryWithoutScript(\\n\",\r\n    \" File \\\"/src/services/worker/.venv/lib/python3.9/site-packages/datasets/load.py\\\", line 1245, in get_module\\n module_name, default_builder_kwargs = infer_module_for_data_files(\\n\",\r\n    \" File \\\"/src/services/worker/.venv/lib/python3.9/site-packages/datasets/load.py\\\", line 595, in infer_module_for_data_files\\n raise DataFilesNotFoundError(\\\"No (supported) data files found\\\" + (f\\\" in {path}\\\" if path else \\\"\\\"))\\n\",\r\n    \"datasets.exceptions.DataFilesNotFoundError: No (supported) data files found in cis-lmu/Glot500\\n\"\r\n  ]\r\n}\r\n```\r\n\r\nbecause the deleted files were still listed in the README, see https://huggingface.co/datasets/cis-lmu/Glot500/discussions/4\r\n\r\nIdeally, the error message would include the name of the first configuration with missing files, to help the user understand how to fix it. Here, it would tell that configuration `aze_Ethi` has no supported data files, instead of telling that the `cis-lmu/Glot500` *dataset* has no supported data files (which is not true).\n\n### Motivation\n\nGiving more detail in the error would help the Datasets Hub users to debug why the dataset viewer does not work.\n\n### Your contribution\n\nNot sure how to best fix this, as there are a lot of loops on the dataset configs in the traceback methods. \"maybe\" it would be easier to handle if the code was completely isolating each config.",
+      "author": "severo",
+      "state": "open",
+      "created_at": "2024-04-17T11:19:47+00:00",
+      "updated_at": "2026-10-18T02:34:48+00:00",
+      "closed_at": null,
+      "comments_count": 2,
+      "url": "https://github.com/huggingface/datasets/issues/6819"
+    }
+  ],
+  "comments": {
+    "8888": [
+      {
+        "author": "choksi2212",
+        "author_association": "NONE",
+        "body": "The repro holds up, and the `PandasArrayExtensionDtype.__from_arrow__` going through `ArrayExtensionArray.to_numpy` explains both symptoms cleanly: NaN insertion kills the row-validity distinction and the float64 promotion loses the exact integer payloads. I am taking a pass at the masked-representation path, so the Arrow row-validity bitmap and non-null payloads survive the round trip without inferring nulls from NaNs, with the copy/slice/take/concatenation contracts intact (#8867's included). Will follow up with a PR.\n",
+        "created_at": "2026-10-23T23:33:31+00:00"
+      },
+      {
+        "author": "choksi2212",
+        "author_association": "NONE",
+        "body": "Opened #8889 with a fix for the fixed-shape side.\n\nThe shape it materializes mirrors what the dynamic path already does: one exact ndarray per valid row, None per null row. The row validity then survives `Dataset.from_pandas(ds.to_pandas(), features=...)` end to end, integer columns keep their exact payloads (the 2**53+1 case now round trips), and the all-NaN-vs-null distinction is preserved. The pandas dtype also keeps the fixed shape and value type now, so an all-null column can rebuild its type, which was the one case the old dense NaN materialization handled only by silently turning the nulls into valid all-NaN rows.\n\nFor the boundaries you flagged: the Python read path and the dynamic-shape path are untouched, #8701's null-row regression stays green, and `isna()` now counts None/NaN scalar rows as null instead of crashing on `pd.isna(None).any()`, while ndarray rows keep their existing NaN inspection. Concatenation via `pd.concat` currently raises the same `'PandasArrayExtensionDtype' object has no attribute 'v'` on this fix and on main (dense and dynamic columns alike), so I left that for #8867 rather than widening the change.\n",
+        "created_at": "2026-10-24T01:50:41+00:00"
+      }
+    ],
+    "8859": [
+      {
+        "author": "gorkadabo1",
+        "author_association": "CONTRIBUTOR",
+        "body": "#self-assign",
+        "created_at": "2026-10-20T08:00:25+00:00"
+      }
+    ],
+    "8743": [
+      {
+        "author": "wpyaoxueros",
+        "author_association": "NONE",
+        "body": "#self-assign",
+        "created_at": "2026-10-21T09:22:44+00:00"
+      },
+      {
+        "author": "wpyaoxueros",
+        "author_association": "NONE",
+        "body": "I self-assigned this issue before I detected the existing matching PRs. I have since confirmed that #8744 and #8775 both cover the same writer-cleanup path, so I will not submit duplicate work. GitHub will not let me remove my own assignment with my current permissions; could a maintainer please unassign me? Sorry for the extra noise.",
+        "created_at": "2026-10-21T09:35:55+00:00"
+      },
+      {
+        "author": "wpyaoxueros",
+        "author_association": "NONE",
+        "body": "Following up on my earlier withdrawal: I have now submitted a context-manager alternative in #8885 with real-writer regression tests for path and borrowed-buffer exports. #8744 and #8775 already cover this issue; this PR is offered as an alternative for maintainer consideration. Codex assisted with the implementation, validation and this message.\n",
+        "created_at": "2026-10-23T10:20:40+00:00"
+      }
+    ],
+    "7290": [
+      {
+        "author": "GeekOrangeLuYao",
+        "author_association": "NONE",
+        "body": "I've met the same situations.\r\n\r\nHere's my logs:\r\nnum_proc = 64, I stop it early as it cost **too** much time.\r\n```\r\nSaving the dataset (1540/4775 shards):  32%|\u2588\u2588\u2588\u258f      | 47752224/147853764 [15:32:54<132:28:34, 209.89 examples/s]\r\nSaving the dataset (1540/4775 shards):  32%|\u2588\u2588\u2588\u258f      | 47754224/147853764 [15:32:54<78:14:37, 355.37 examples/s] \r\nSaving the dataset (1540/4775 shards):  32%|\u2588\u2588\u2588\u258f      | 47755224/147853764 [15:32:59<93:43:45, 296.65 examples/s]\r\n```\r\n\r\nnum_proc = 1(Not set num_proc parameter)\r\n```\r\nSaving the dataset (1753/4775 shards):  37%|\u2588\u2588\u2588\u258b      | 54301556/147853764 [24:46<38:33, 40440.93 examples/s]\r\nSaving the dataset (1753/4775 shards):  37%|\u2588\u2588\u2588\u258b      | 54306556/147853764 [24:46<39:34, 39392.01 examples/s]\r\nSaving the dataset (1753/4775 shards):  37%|\u2588\u2588\u2588\u258b      | 54311520/147853764 [24:46<38:56, 40030.53 examples/s]\r\n```\r\n\r\nI check the conditions of CPUs and Memory I/O, I found that disk I/O was blocked, but CPU and memory usage was high. There should be some bugs in the code.\r\n\r\n",
+        "created_at": "2025-01-08T11:22:49+00:00"
+      },
+      {
+        "author": "Macchiatobin",
+        "author_association": "NONE",
+        "body": "Any new process on this issue? I'm encountering the same issue.",
+        "created_at": "2025-06-20T06:10:26+00:00"
+      },
+      {
+        "author": "kiddyboots216",
+        "author_association": "NONE",
+        "body": "Not getting this issue. \n\nMy output;\n\n`Saving the dataset (0/87 shards):   7%|\u258e    | 588000/8557560 [01:29<21:02, 6314.04 examples/s]`\n\nAt setting `num_proc=64`, and \n\n`Saving the dataset (0/87 shards):   0%|    | 28000/8557560 [03:20<16:59:06, 139.49 examples/s]` \n\nAt num_proc=1 (pass nothing)\n\nMy `pyproject.toml`; \n\n```\n[project]\nname = \"test\"\nversion = \"0.1.0\"\nrequires-python = \"==3.13.0\"\ndependencies = [\n    \"absl-py==2.1.0\",\n    \"accelerate==1.7.0\",\n    \"aiohappyeyeballs==2.6.1\",\n    \"aiohttp==3.12.11\",\n    \"aiosignal==1.3.2\",\n    \"annotated-types==0.7.0\",\n    \"appdirs==1.4.4\",\n    \"argcomplete>=1.8.1\",\n    \"astunparse==1.6.3\",\n    \"async-timeout==5.0.1\",\n    \"attrs==21.2.0\",\n    \"automat==20.2.0\",\n    \"babel==2.8.0\",\n    \"backcall==0.2.0\",\n    \"bcrypt==3.2.0\",\n    \"beautifulsoup4==4.10.0\",\n    \"beniget==0.4.2\",\n    \"bleach==4.1.0\",\n    \"blinker==1.4\",\n    \"blis==1.3.0\",\n    \"bottle==0.12.19\",\n    \"brotli==1.0.9\",\n    \"catalogue==2.0.10\",\n    \"certifi==2020.6.20\",\n    \"cffi==1.15.0\",\n    \"chardet==4.0.0\",\n    \"charset-normalizer==3.4.2\",\n    \"click==8.0.3\",\n    \"cloudpathlib==0.21.1\",\n    \"colorama>=0.4.4\",\n    \"commonmark==0.9.1\",\n    \"confection==0.1.5\",\n    \"configobj==5.0.6\",\n    \"constantly==15.1.0\",\n    \"cryptography==3.4.8\",\n    \"ctop==1.0.0\",\n    \"cycler==0.11.0\",\n    \"cymem==2.0.11\",\n    \"datasets==3.6.0\",\n    \"dbus-python==1.2.18\",\n    \"decorator==4.4.2\",\n    \"defusedxml==0.7.1\",\n    \"dill==0.3.8\",\n    \"distlib==0.3.4\",\n    \"distro==1.7.0\",\n    \"einops==0.8.1\",\n    \"en-core-web-sm\",\n    \"entrypoints==0.4\",\n    \"evaluate==0.4.3\",\n    \"filelock==3.6.0\",\n    \"flake8==4.0.1\",\n    \"flatbuffers==25.2.10\",\n    \"fonttools==4.29.1\",\n    \"frozenlist==1.7.0\",\n    \"fs==2.4.12\",\n    \"fsspec==2024.3.1\",\n    \"future==0.18.2\",\n    \"gast==0.6.0\",\n    \"gitdb==4.0.12\",\n    \"gitpython==3.1.44\",\n    \"glances==3.2.4.2\",\n    \"google-pasta==0.2.0\",\n    \"grpcio==1.73.0\",\n    \"h5py==3.14.0\",\n    \"hf-xet==1.1.3\",\n    \"html5lib==1.1\",\n    \"httplib2==0.20.2\",\n    \"huggingface-hub==0.32.4\",\n    \"hyperlink==21.0.0\",\n    \"icdiff==2.0.4\",\n    \"idna==3.3\",\n    \"importlib-metadata==4.6.4\",\n    \"incremental==21.3.0\",\n    \"influxdb==5.3.1\",\n    \"ipykernel==6.7.0\",\n    \"ipython==7.31.1\",\n    \"ipython-genutils==0.2.0\",\n    \"jax>=0.5.1\",\n    \"jax-cuda12-pjrt>=0.5.1\",\n    \"jax-cuda12-plugin>=0.5.1\",\n    \"jaxlib>=0.5.1\",\n    \"jedi==0.18.0\",\n    \"jeepney==0.7.1\",\n    \"jinja2==3.0.3\",\n    \"joblib>=0.17.0\",\n    \"jsonpatch==1.32\",\n    \"jsonpointer==2.0\",\n    \"jsonschema==3.2.0\",\n    \"jupyter-client==7.1.2\",\n    \"jupyter-core==4.9.1\",\n    \"kaptan>=0.5.12\",\n    \"keras==3.6.0\",\n    \"keyring==23.5.0\",\n    \"kiwisolver==1.3.2\",\n    \"langcodes==3.5.0\",\n    \"language-data==1.3.0\",\n    \"launchpadlib==1.10.16\",\n    \"lazr-restfulclient==0.14.4\",\n    \"lazr-uri==1.0.6\",\n    \"libclang==18.1.1\",\n    \"libtmux==0.10.1\",\n    \"livereload==2.6.3\",\n    \"lxml==6.0.0\",\n    \"lz4==3.1.3\",\n    \"marisa-trie==1.2.1\",\n    \"markdown==3.3.6\",\n    \"markupsafe==2.0.1\",\n    \"matplotlib==3.5.1\",\n    \"matplotlib-inline==0.1.3\",\n    \"mccabe==0.6.1\",\n    \"mkdocs==1.1.2\",\n    \"ml-dtypes==0.5.1\",\n    \"more-itertools==8.10.0\",\n    \"mpmath>=0.0.0\",\n    \"msgpack==1.0.3\",\n    \"multidict==6.4.4\",\n    \"multiprocess==0.70.16\",\n    \"murmurhash==1.0.13\",\n    \"namex==0.0.8\",\n    \"nest-asyncio==1.5.4\",\n    \"netifaces==0.11.0\",\n    \"networkx==2.4\",\n    \"nltk==3.9.1\",\n    \"numpy>=1.23.3\",\n    \"nvidia-ml-py==12.555.43\",\n    \"oauthlib==3.2.0\",\n    \"olefile==0.46\",\n    \"opt-einsum==3.3.0\",\n    \"optree==0.13.1\",\n    \"packaging==21.3\",\n    \"pandas==2.3.0\",\n    \"parso==0.8.1\",\n    \"pexpect==4.8.0\",\n    \"pickleshare==0.7.5\",\n    \"pillow>=9.0.1\",\n    \"pipx==1.0.0\",\n    \"platformdirs==2.5.1\",\n    \"ply==3.11\",\n    \"portalocker==3.1.1\",\n    \"preshed==3.0.10\",\n    \"prompt-toolkit==3.0.28\",\n    \"propcache==0.3.2\",\n    \"protobuf==4.21.12\",\n    \"psutil==5.9.0\",\n    \"ptyprocess==0.7.0\",\n    \"py==1.10.0\",\n    \"pyarrow==20.0.0\",\n    \"pyasn1==0.4.8\",\n    \"pyasn1-modules==0.2.1\",\n    \"pycodestyle==2.8.0\",\n    \"pycparser==2.21\",\n    \"pycryptodomex==3.11.0\",\n    \"pydantic==2.11.5\",\n    \"pydantic-core==2.33.2\",\n    \"pyflakes==2.4.0\",\n    \"pygments==2.11.2\",\n    \"pyhamcrest==2.0.2\",\n    \"pyinotify==0.9.6\",\n    \"pyjwt==2.3.0\",\n    \"pyopenssl==21.0.0\",\n    \"pyparsing==2.4.7\",\n    \"pyrsistent==0.18.1\",\n    \"pyserial==3.5\",\n    \"pysmi==0.3.2\",\n    \"pysnmp==4.4.12\",\n    \"pystache==0.6.0\",\n    \"python-dateutil>=2.8.1\",\n    \"python-magic==0.4.24\",\n    \"pythran>=0.10.0\",\n    \"pytz==2022.1\",\n    \"pyyaml==6.0.2\",\n    \"regex==2024.11.6\",\n    \"requests==2.32.4\",\n    \"rich==11.2.0\",\n    \"rouge-score==0.1.2\",\n    \"sacrebleu==2.5.1\",\n    \"safetensors==0.5.3\",\n    \"scikit-learn==1.7.0\",\n    \"scipy>=1.8.0\",\n    \"secretstorage==3.3.1\",\n    \"sentence-transformers==4.1.0\",\n    \"sentry-sdk==2.29.1\",\n    \"service-identity==18.1.0\",\n    \"setproctitle==1.3.6\",\n    \"shellingham==1.5.4\",\n    \"six==1.16.0\",\n    \"smart-open==7.1.0\",\n    \"smmap==5.0.2\",\n    \"soupsieve==2.3.1\",\n    \"spacy==3.8.7\",\n    \"spacy-legacy==3.0.12\",\n    \"spacy-loggers==1.0.5\",\n    \"srsly==2.5.1\",\n    \"ssh-import-id==5.11\",\n    \"sympy>=1.12\",\n    \"tabulate==0.9.0\",\n    \"tensorboard==2.19.0\",\n    \"tensorboard-data-server==0.7.2\",\n    \"termcolor==1.1.0\",\n    \"thinc==8.3.6\",\n    \"threadpoolctl==3.1.0\",\n    \"tmuxp==1.9.2\",\n    \"tokenizers==0.21.1\",\n    \"torch==2.6.0\",\n    \"torchvision==0.21.0\",\n    \"tornado==6.1\",\n    \"tqdm==4.67.1\",\n    \"traitlets==5.1.1\",\n    \"transformers==4.52.4\",\n    \"triton==3.2.0\",\n    \"twisted==22.1.0\",\n    \"typer==0.16.0\",\n    \"typing-extensions==4.14.0\",\n    \"typing-inspection==0.4.1\",\n    \"ufolib2==0.13.1\",\n    \"urllib3==2.4.0\",\n    \"userpath==1.8.0\",\n    \"virtualenv==20.13.0\",\n    \"wadllib==1.3.6\",\n    \"wandb==0.20.1\",\n    \"wasabi==1.1.3\",\n    \"wcwidth==0.2.5\",\n    \"weasel==0.4.1\",\n    \"webencodings==0.5.1\",\n    \"websocket-client==1.2.3\",\n    \"werkzeug==2.0.2\",\n    \"xxhash==3.5.0\",\n    \"yarl==1.20.1\",\n    \"zipp==1.0.0\",\n    \"zope-interface==5.4.0\",\n]\n\n[tool.uv.sources]\nen-core-web-sm = { url = \"https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl\" }\n```",
+        "created_at": "2025-06-27T00:56:47+00:00"
+      },
+      {
+        "author": "carlesoctav",
+        "author_association": "NONE",
+        "body": "have the same issue with gcsfs output_path.",
+        "created_at": "2025-11-24T09:43:02+00:00"
+      },
+      {
+        "author": "hzmsh",
+        "author_association": "CONTRIBUTOR",
+        "body": "`save_to_disk(num_proc=...)` on an in-memory dataset is much slower and uses much more memory than it should, because it sends the whole table to every worker, once per shard, instead of just that shard's rows. Each shard is an Arrow slice of the table (or, after `shuffle`, `filter` or a non-contiguous `select`, the full table plus indices), and Arrow pickles a slice with its full parent buffers ([apache/arrow#26685](https://github.com/apache/arrow/issues/26685)). Memory-mapped datasets (for example from `load_dataset`) are pickled by file path and aren't affected.\n\n```python\nimport pickle\nfrom datasets import Dataset\n\nds = Dataset.from_dict({\"text\": [\"some text \" * 10] * 400_000})\nshard = ds.shard(num_shards=8, index=0, contiguous=True)\nprint(len(pickle.dumps(ds)), len(pickle.dumps(shard)))  # both about 42 MB with pyarrow 26, though the shard has 1/8 of the rows\n```\n\nCopying data to the subprocesses has a cost, as lhoestq [explained in #7217](https://github.com/huggingface/datasets/issues/7217#issuecomment-2429685372), but each worker only needs its own shard. Copying just the shard's rows before sending fixes it. Measured on main and on main with the fix (5.5M rows, 2.1GB, 8 shards, `num_proc=4`): the peak extra memory goes from +11.3GB to about +2.6GB, and the time from 48.7s to about 7s. After `shuffle`, it now takes 8.9s, vs 22.6s with a single process. I'll open a PR for it.\n\n---\nAI assistance: Co-developed with Claude Code (Claude Opus 5.5): the investigation, the reproducer and this comment. The numbers above are from local runs.\n",
+        "created_at": "2026-10-23T04:25:46+00:00"
+      },
+      {
+        "author": "hzmsh",
+        "author_association": "CONTRIBUTOR",
+        "body": "#self-assign",
+        "created_at": "2026-10-23T04:26:11+00:00"
+      }
+    ],
+    "8877": [
+      {
+        "author": "gorkadabo1",
+        "author_association": "CONTRIBUTOR",
+        "body": "#self-assign",
+        "created_at": "2026-10-22T20:53:54+00:00"
+      }
+    ],
+    "5225": [
+      {
+        "author": "mariosasko",
+        "author_association": "COLLABORATOR",
+        "body": "@NielsRogge @rwightman may have additional requirements regarding this feature.\r\n\r\nWhen adding a new (decodable) type, the hardest part is choosing the right decoding library. What I mean by \"right\" here is that it has all the features we need and is easy to install (with GPU support?).\r\n\r\nSome candidates/options:\r\n* [`decord`](https://github.com/dmlc/decord): no longer [maintained](https://github.com/dmlc/decord/issues/214), not trivial to install with GPU support\r\n* [`pyAV`](https://github.com/PyAV-Org/PyAV):  used for CPU decoding in `torchvision`, GPU decoding not supported if I'm not mistaken, otherwise the best candidate probably\r\n* [`video_reader`](https://github.com/pytorch/vision/blob/de350bc01ad2193ea2888f0ce8a6a346d3cba5a9/torchvision/csrc/io/video_reader/video_reader.cpp): used for GPU decoding in `torchvision`, depends on `torch'\r\n* OpenCV: uses `ffmpeg` for video decoding under the hood\r\n* ...\r\n\r\nAnd the last resort is building our own library, which is the most flexible solution but also requires the most work.\r\n\r\nPS: I'm adding a link to an article that compares various video decoding libraries: https://towardsdatascience.com/lightning-fast-video-reading-in-python-c1438771c4e6",
+        "created_at": "2022-11-29T20:11:20+00:00"
+      },
+      {
+        "author": "nateraw",
+        "author_association": "CONTRIBUTOR",
+        "body": "@mariosasko is GPU decoding a hard requirement here? Do we really need it? (I don't know)\r\n\r\nSomething to consider with `decord` is that it doesn't (AFAIK) support writing videos, so you'd still need something else for that. also I've noticed [issues](https://github.com/dmlc/decord/issues/242) with decord's ability to decode stereo audio streams along side the video (which you don't run into with PyAV).\r\n\r\n---\r\n\r\nI think PyAV should be able to do the job just fine to start. If we write the video io utilities as their own functions, we can hot swap them later if we find/write a different solution that's faster/better.",
+        "created_at": "2022-11-29T20:50:43+00:00"
+      },
+      {
+        "author": "rwightman",
+        "author_association": "NONE",
+        "body": "Video is still a bit of a mess, but I'd say pyAV is likely the best approach (or supporting all three via pytorchvideo, but that adds a middle man dependency).\r\n\r\nBeing able to decode on the GPU, into memory that could be passed off to a Tensor in whatever framework is being used would be the dream, I don't think there is any interop of that nature working right now. Number of decoder instances per GPU is limited so it's not clear if balancing load btw GPU decoders and CPUs would be needed in say large scale video training.\r\n\r\nAny of these solutions is less than ideal due to the nature of video, having a simple Python interface video / start -> end results in lots of extra memory (you need to decode whole range of the clips into a buffer before using anything). Any scalable video system would be streaming on the fly (issuing frames via callbacks as soon as the stream is far enough along to have re-ordered the frames and synced audio+video+other metadata (sensors, CC, etc).\r\n\r\n",
+        "created_at": "2022-11-29T21:18:19+00:00"
+      },
+      {
+        "author": "sayakpaul",
+        "author_association": "MEMBER",
+        "body": "For standalone usage, decoding on GPU could be ideal but isn't async processing of inputs on CPUs while letting the accelerator busy for training the de-facto? Of course, I am aware of other advanced mechanisms such as CPU offloading, but I think my point is conveyed. ",
+        "created_at": "2022-11-30T03:39:29+00:00"
+      },
+      {
+        "author": "nateraw",
+        "author_association": "CONTRIBUTOR",
+        "body": "Here's a minimal implementation of the helper functions we'd need from PyAV, a lot of which I borrowed from `pytorchvideo`, stripping out the `torch` specific stuff:\r\n\r\n[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/gist/nateraw/c327cb6ff6b074e6ddc8068d19c0367d/pyav-io.ipynb)\r\n    \r\nIt's not too much code...@mariosasko we could probably just maintain these helper fns within the `datasets` library, right? ",
+        "created_at": "2022-12-02T06:39:21+00:00"
+      },
+      {
+        "author": "nateraw",
+        "author_association": "CONTRIBUTOR",
+        "body": "Also wanted to note I added a PR for video classification in `transformers` here, which uses `decord`. It's still open...should we make a decision now to align the libraries we are using between `datasets` and `transformers`? (CC @Narsil )\r\n\r\nhttps://github.com/huggingface/transformers/pull/20151",
+        "created_at": "2022-12-02T06:41:22+00:00"
+      },
+      {
+        "author": "Narsil",
+        "author_association": "CONTRIBUTOR",
+        "body": "Fully agree on at least trying to unite things.\r\n\r\nMaking clear function boundaries to help us change dependency if needed seems like a good idea since there doesn't seem to be a clear winner.\r\n\r\nI also happen to like directly calling ffmpeg. For some reason it was a lot faster than pyav. ",
+        "created_at": "2022-12-02T15:13:15+00:00"
+      },
+      {
+        "author": "LeonxLJX",
+        "author_association": "NONE",
+        "body": "I'd like to take this one (`Add video feature`). I'll look into the root cause and follow up with a PR. (claiming via @LeonxLJX)",
+        "created_at": "2026-09-01T10:28:51+00:00"
+      },
+      {
+        "author": "LeonxLJX",
+        "author_association": "NONE",
+        "body": "I'd like to take this one (`Add video feature`). I'll look into the root cause and follow up with a PR. (claiming via @LeonxLJX)",
+        "created_at": "2026-09-01T12:09:48+00:00"
+      },
+      {
+        "author": "sharmis-tp",
+        "author_association": "NONE",
+        "body": "I'd like to help with this. Recent releases appear to ship a `Video` feature, so I'd first check it against the points raised here (large files, clip sampling, the audio stream, encoding and decoding from bytes) and add only what's missing, with tests on a small sample video. Is anything here still open, or can this be closed?\n",
+        "created_at": "2026-10-22T00:49:28+00:00"
+      }
+    ],
+    "8799": [
+      {
+        "author": "hzmsh",
+        "author_association": "CONTRIBUTOR",
+        "body": "#self-assign",
+        "created_at": "2026-10-14T04:34:53+00:00"
+      }
+    ],
+    "8242": [
+      {
+        "author": "matdou",
+        "author_association": "NONE",
+        "body": "Wrong repo, this belongs in axolotl, not `datasets`. And `eval_strategy: \"no\"` was never going to stop it.\n\nWhat hangs you is the diffusion plugin's sample generation. `DiffusionGenerationCallback.on_step_end` fires on `global_step % generation_interval == 0` and ignores `eval_strategy`. When you have no eval dataset, it falls back to `get_train_dataloader()`. That matches your note about eval running on the train dataloader.\n\nSet this instead:\n\n```\ndiffusion:\n  generate_samples: false\n```\n\nThe callback only registers when `generate_samples` is true. You set it twice in your config (`true` then `false`); YAML keeps the last key, so confirm it lands on `false`. If it reads `false` and the callback still runs, file that in axolotl as a real bug.\n\nOne more thing: you set `test_datasets` but `eval_strategy: \"no\"`. Drop `test_datasets` if you want no eval at all.",
+        "created_at": "2026-06-20T14:48:33+00:00"
+      }
+    ],
+    "8863": [],
+    "7222": [
+      {
+        "author": "KurtMica",
+        "author_association": "NONE",
+        "body": "I am encountering this same issue. It seems that the library manages to recognise an optional column (but not **exclusively** null) if there is at least one non-null instance within the same file. For example, given a `test_0.jsonl` file:\r\n```json\r\n{\"a\": \"a1\", \"b\": \"b1\", \"c\": null, \"d\": null}\r\n{\"a\": \"a2\", \"b\": null, \"c\": \"c2\", \"d\": null}\r\n```\r\nthe data is correctly loaded, recognising that columns `b` & `c` are optional, while `d` is null.\r\n```python\r\n{'a': ['a1', 'a2'], 'b': ['b1', None], 'c': [None, 'c2'], 'd': [None, None]}\r\n```\r\n\r\nBut if the `config` has another file, say `test_1.jsonl` where `d` now has some non-null values:\r\n```json\r\n{\"a\": null, \"b\": \"b3\", \"c\": \"c3\", \"d\": \"d3\"}\r\n{\"a\": \"a4\", \"b\": \"b4\", \"c\": null, \"d\": null}\r\n```\r\nthen, an error is raised:\r\n```\r\nTypeError                                 Traceback (most recent call last)\r\n\r\n[/usr/local/lib/python3.10/dist-packages/datasets/builder.py](https://localhost:8080/#) in _prepare_split_single(self, gen_kwargs, fpath, file_format, max_shard_size, job_id)\r\n   1869                     try:\r\n-> 1870                         writer.write_table(table)\r\n   1871                     except CastError as cast_error:\r\n\r\n14 frames\r\n\r\nTypeError: Couldn't cast array of type string to null\r\n\r\n\r\nThe above exception was the direct cause of the following exception:\r\n\r\nDatasetGenerationError                    Traceback (most recent call last)\r\n\r\n[/usr/local/lib/python3.10/dist-packages/datasets/builder.py](https://localhost:8080/#) in _prepare_split_single(self, gen_kwargs, fpath, file_format, max_shard_size, job_id)\r\n   1895             if isinstance(e, DatasetGenerationError):\r\n   1896                 raise\r\n-> 1897             raise DatasetGenerationError(\"An error occurred while generating the dataset\") from e\r\n   1898 \r\n   1899         yield job_id, True, (total_num_examples, total_num_bytes, writer._features, num_shards, shard_lengths)\r\n\r\nDatasetGenerationError: An error occurred while generating the dataset\r\n```\r\n\r\n---\r\n\r\nI have created a [sample repository](https://huggingface.co/datasets/KurtMica/optional_columns_mutiple_files) if that helps. Interestingly, the dataset viewer correctly shows the data across files, although it still indicates the above error.",
+        "created_at": "2024-12-12T10:04:05+00:00"
+      },
+      {
+        "author": "KurtMica",
+        "author_association": "NONE",
+        "body": " Managed to find a workaround, by [specifying the features explicitly](https://huggingface.co/docs/datasets/main/en/loading#specify-features), which is also possible to do directly using the [YAML file configuration](https://discuss.huggingface.co/t/appropriate-yaml-for-dataset-info-list-float/74418).",
+        "created_at": "2025-01-05T15:22:34+00:00"
+      },
+      {
+        "author": "renweizhukov",
+        "author_association": "NONE",
+        "body": "I hit the same issue for `datasets 3.2.0`. Given the two jsonl files with the same content but different ordering, `load_dataset` worked for one but did not work for the other.\n\n```\nfrom datasets import load_dataset\n\nissues_dataset = load_dataset(\n    \"json\", data_files=\"NeMo-issues-fixed.jsonl\", split=\"train\"\n)\nissues_dataset\n```\n\nFor [NeMo-issues.jsonl](https://github.com/renweizhukov/jupyter-lab-notebook/blob/main/hugging-face-nlp-course/NeMo-issues.jsonl), I got an exception:\n\n```\n---------------------------------------------------------------------------\nTypeError                                 Traceback (most recent call last)\nFile [~/anaconda3/envs/llm/lib/python3.12/site-packages/datasets/builder.py:1870](http://localhost:8888/home/renwei/anaconda3/envs/llm/lib/python3.12/site-packages/datasets/builder.py#line=1869), in ArrowBasedBuilder._prepare_split_single(self, gen_kwargs, fpath, file_format, max_shard_size, job_id)\n   1869 try:\n-> 1870     writer.write_table(table)\n   1871 except CastError as cast_error:\n\nFile [~/anaconda3/envs/llm/lib/python3.12/site-packages/datasets/arrow_writer.py:622](http://localhost:8888/home/renwei/anaconda3/envs/llm/lib/python3.12/site-packages/datasets/arrow_writer.py#line=621), in ArrowWriter.write_table(self, pa_table, writer_batch_size)\n    621 pa_table = pa_table.combine_chunks()\n--> 622 pa_table = table_cast(pa_table, self._schema)\n    623 if self.embed_local_files:\n\nFile [~/anaconda3/envs/llm/lib/python3.12/site-packages/datasets/table.py:2292](http://localhost:8888/home/renwei/anaconda3/envs/llm/lib/python3.12/site-packages/datasets/table.py#line=2291), in table_cast(table, schema)\n   2291 if table.schema != schema:\n-> 2292     return cast_table_to_schema(table, schema)\n   2293 elif table.schema.metadata != schema.metadata:\n\nFile [~/anaconda3/envs/llm/lib/python3.12/site-packages/datasets/table.py:2246](http://localhost:8888/home/renwei/anaconda3/envs/llm/lib/python3.12/site-packages/datasets/table.py#line=2245), in cast_table_to_schema(table, schema)\n   2240     raise CastError(\n   2241         f\"Couldn't cast\\n{_short_str(table.schema)}\\nto\\n{_short_str(features)}\\nbecause column names don't match\",\n   2242         table_column_names=table.column_names,\n   2243         requested_column_names=list(features),\n   2244     )\n   2245 arrays = [\n-> 2246     cast_array_to_feature(\n   2247         table[name] if name in table_column_names else pa.array([None] * len(table), type=schema.field(name).type),\n   2248         feature,\n   2249     )\n   2250     for name, feature in features.items()\n   2251 ]\n   2252 return pa.Table.from_arrays(arrays, schema=schema)\n\nFile [~/anaconda3/envs/llm/lib/python3.12/site-packages/datasets/table.py:1795](http://localhost:8888/home/renwei/anaconda3/envs/llm/lib/python3.12/site-packages/datasets/table.py#line=1794), in _wrap_for_chunked_arrays.<locals>.wrapper(array, *args, **kwargs)\n   1794 if isinstance(array, pa.ChunkedArray):\n-> 1795     return pa.chunked_array([func(chunk, *args, **kwargs) for chunk in array.chunks])\n   1796 else:\n\nFile [~/anaconda3/envs/llm/lib/python3.12/site-packages/datasets/table.py:2102](http://localhost:8888/home/renwei/anaconda3/envs/llm/lib/python3.12/site-packages/datasets/table.py#line=2101), in cast_array_to_feature(array, feature, allow_primitive_to_str, allow_decimal_to_str)\n   2101 elif not isinstance(feature, (Sequence, dict, list, tuple)):\n-> 2102     return array_cast(\n   2103         array,\n   2104         feature(),\n   2105         allow_primitive_to_str=allow_primitive_to_str,\n   2106         allow_decimal_to_str=allow_decimal_to_str,\n   2107     )\n   2108 raise TypeError(f\"Couldn't cast array of type\\n{_short_str(array.type)}\\nto\\n{_short_str(feature)}\")\n\nFile [~/anaconda3/envs/llm/lib/python3.12/site-packages/datasets/table.py:1797](http://localhost:8888/home/renwei/anaconda3/envs/llm/lib/python3.12/site-packages/datasets/table.py#line=1796), in _wrap_for_chunked_arrays.<locals>.wrapper(array, *args, **kwargs)\n   1796 else:\n-> 1797     return func(array, *args, **kwargs)\n\nFile [~/anaconda3/envs/llm/lib/python3.12/site-packages/datasets/table.py:1948](http://localhost:8888/home/renwei/anaconda3/envs/llm/lib/python3.12/site-packages/datasets/table.py#line=1947), in array_cast(array, pa_type, allow_primitive_to_str, allow_decimal_to_str)\n   1947 if pa.types.is_null(pa_type) and not pa.types.is_null(array.type):\n-> 1948     raise TypeError(f\"Couldn't cast array of type {_short_str(array.type)} to {_short_str(pa_type)}\")\n   1949 return array.cast(pa_type)\n\nTypeError: Couldn't cast array of type string to null\n\nThe above exception was the direct cause of the following exception:\n\nDatasetGenerationError                    Traceback (most recent call last)\nCell In[73], line 3\n      1 from datasets import load_dataset\n----> 3 issues_dataset = load_dataset(\n      4     \"json\", data_files=\"NeMo-issues.jsonl\", split=\"train\"\n      5 )\n      6 issues_dataset\n\nFile [~/anaconda3/envs/llm/lib/python3.12/site-packages/datasets/load.py:2151](http://localhost:8888/home/renwei/anaconda3/envs/llm/lib/python3.12/site-packages/datasets/load.py#line=2150), in load_dataset(path, name, data_dir, data_files, split, cache_dir, features, download_config, download_mode, verification_mode, keep_in_memory, save_infos, revision, token, streaming, num_proc, storage_options, trust_remote_code, **config_kwargs)\n   2148     return builder_instance.as_streaming_dataset(split=split)\n   2150 # Download and prepare data\n-> 2151 builder_instance.download_and_prepare(\n   2152     download_config=download_config,\n   2153     download_mode=download_mode,\n   2154     verification_mode=verification_mode,\n   2155     num_proc=num_proc,\n   2156     storage_options=storage_options,\n   2157 )\n   2159 # Build dataset for splits\n   2160 keep_in_memory = (\n   2161     keep_in_memory if keep_in_memory is not None else is_small_dataset(builder_instance.info.dataset_size)\n   2162 )\n\nFile [~/anaconda3/envs/llm/lib/python3.12/site-packages/datasets/builder.py:924](http://localhost:8888/home/renwei/anaconda3/envs/llm/lib/python3.12/site-packages/datasets/builder.py#line=923), in DatasetBuilder.download_and_prepare(self, output_dir, download_config, download_mode, verification_mode, dl_manager, base_path, file_format, max_shard_size, num_proc, storage_options, **download_and_prepare_kwargs)\n    922 if num_proc is not None:\n    923     prepare_split_kwargs[\"num_proc\"] = num_proc\n--> 924 self._download_and_prepare(\n    925     dl_manager=dl_manager,\n    926     verification_mode=verification_mode,\n    927     **prepare_split_kwargs,\n    928     **download_and_prepare_kwargs,\n    929 )\n    930 # Sync info\n    931 self.info.dataset_size = sum(split.num_bytes for split in self.info.splits.values())\n\nFile [~/anaconda3/envs/llm/lib/python3.12/site-packages/datasets/builder.py:1000](http://localhost:8888/home/renwei/anaconda3/envs/llm/lib/python3.12/site-packages/datasets/builder.py#line=999), in DatasetBuilder._download_and_prepare(self, dl_manager, verification_mode, **prepare_split_kwargs)\n    996 split_dict.add(split_generator.split_info)\n    998 try:\n    999     # Prepare split will record examples associated to the split\n-> 1000     self._prepare_split(split_generator, **prepare_split_kwargs)\n   1001 except OSError as e:\n   1002     raise OSError(\n   1003         \"Cannot find data file. \"\n   1004         + (self.manual_download_instructions or \"\")\n   1005         + \"\\nOriginal erro[r:\\n](file:///R:/n)\"\n   1006         + str(e)\n   1007     ) from None\n\nFile [~/anaconda3/envs/llm/lib/python3.12/site-packages/datasets/builder.py:1741](http://localhost:8888/home/renwei/anaconda3/envs/llm/lib/python3.12/site-packages/datasets/builder.py#line=1740), in ArrowBasedBuilder._prepare_split(self, split_generator, file_format, num_proc, max_shard_size)\n   1739 job_id = 0\n   1740 with pbar:\n-> 1741     for job_id, done, content in self._prepare_split_single(\n   1742         gen_kwargs=gen_kwargs, job_id=job_id, **_prepare_split_args\n   1743     ):\n   1744         if done:\n   1745             result = content\n\nFile [~/anaconda3/envs/llm/lib/python3.12/site-packages/datasets/builder.py:1897](http://localhost:8888/home/renwei/anaconda3/envs/llm/lib/python3.12/site-packages/datasets/builder.py#line=1896), in ArrowBasedBuilder._prepare_split_single(self, gen_kwargs, fpath, file_format, max_shard_size, job_id)\n   1895     if isinstance(e, DatasetGenerationError):\n   1896         raise\n-> 1897     raise DatasetGenerationError(\"An error occurred while generating the dataset\") from e\n   1899 yield job_id, True, (total_num_examples, total_num_bytes, writer._features, num_shards, shard_lengths)\n\nDatasetGenerationError: An error occurred while generating the dataset\n```\n\nFor [NeMo-issues-fixed.json](https://github.com/renweizhukov/jupyter-lab-notebook/blob/main/hugging-face-nlp-course/NeMo-issues-fixed.jsonl) which consists of the last 1000 lines and then the first 9000 lines of NeMo-issues.jsonl, I could load the data:\n\n```\nDataset({\n    features: ['url', 'repository_url', 'labels_url', 'comments_url', 'events_url', 'html_url', 'id', 'node_id', 'number', 'title', 'user', 'labels', 'state', 'locked', 'assignee', 'assignees', 'milestone', 'comments', 'created_at', 'updated_at', 'closed_at', 'author_association', 'sub_issues_summary', 'active_lock_reason', 'draft', 'pull_request', 'body', 'closed_by', 'reactions', 'timeline_url', 'performed_via_github_app', 'state_reason'],\n    num_rows: 10000\n})\n```",
+        "created_at": "2025-01-21T02:36:03+00:00"
+      },
+      {
+        "author": "DronHazra",
+        "author_association": "NONE",
+        "body": "having the same issue as well!",
+        "created_at": "2025-02-23T13:01:47+00:00"
+      },
+      {
+        "author": "Met4physics",
+        "author_association": "NONE",
+        "body": "Is this fixed in the latest version?",
+        "created_at": "2025-07-12T17:43:05+00:00"
+      },
+      {
+        "author": "Cooperx521",
+        "author_association": "NONE",
+        "body": "@DronHazra @renweizhukov Is this fixed in the latest version?",
+        "created_at": "2025-07-21T03:07:32+00:00"
+      },
+      {
+        "author": "hzmsh",
+        "author_association": "CONTRIBUTOR",
+        "body": "Hi @lhoestq, I'd like to help fix this, and wanted to check the approach with you first, since it touches a design choice.\n\nIf a column is null in every row of the first chunk the JSON builder reads (10 MB by default), its type gets fixed as `null`. When a later chunk has strings in that column, loading fails with `Couldn't cast array of type string to null`, so whether a file loads depends on the order of its rows.\n\n**Repro** (main at 18378f7, and 5.1.0)\n\n```python\nimport json\nimport tempfile\n\nfrom datasets import load_dataset\n\npath = tempfile.mktemp(suffix=\".jsonl\")\nwith open(path, \"w\") as f:\n    for i in range(200):\n        f.write(json.dumps({\"id\": i, \"a\": None}) + \"\\n\")  # \"a\" is null in the whole first chunk\n    f.write(json.dumps({\"id\": 200, \"a\": \"x\"}) + \"\\n\")\n\nload_dataset(\"json\", data_files=path, split=\"train\", chunksize=4096)\n# TypeError: Couldn't cast array of type string to null (raised as DatasetGenerationError)\n```\n\nWith the default `chunksize`, the same happens once the null rows fill the first 10 MB. If the string row comes first, the file loads fine.\n\n**Where it comes from**\n\n- `_split_generators` sets `info.features` from the first table of the first file ([json.py#L99-L104](https://github.com/huggingface/datasets/blob/18378f7322c7eb1c2d93f895dd8e9f71f8623934/src/datasets/packaged_modules/json/json.py#L99-L104)).\n- Every later chunk is cast to those features ([json.py#L132](https://github.com/huggingface/datasets/blob/18378f7322c7eb1c2d93f895dd8e9f71f8623934/src/datasets/packaged_modules/json/json.py#L132)), and `array_cast` refuses to cast a non-null array to `null` ([table.py#L2013-L2014](https://github.com/huggingface/datasets/blob/18378f7322c7eb1c2d93f895dd8e9f71f8623934/src/datasets/table.py#L2013-L2014)).\n\n<details><summary>Earlier reports and maintainer replies</summary>\n\nReports with the same cause (a column typed `null` from the first rows, then real values later):\n\n- #7222 (this issue): nokados; KurtMica, renweizhukov and DronHazra hit it too, and Met4physics and Cooperx521 asked whether it was fixed.\n- #5422: folterj, adeep028 and ethana1234 (`timestamp` after nulls).\n- #6845: yucc-leon and LawsonAbs (`list<null>` from empty lists in the first chunks).\n- #7092: Vipitis (some of the files had a column with only empty values).\n- #3965 and #5009 describe the same pattern, and #7664 probably does too (a `timestamp[s]` to `null` error on the same GitHub-issues data, not confirmed in that thread).\n\nReplies so far:\n\n- albertvillanova in [#7092](https://github.com/huggingface/datasets/issues/7092#issuecomment-2275260709): inferring from the first samples is on purpose, \"so that the entire data does not need to be parsed twice\".\n- You in [#5009](https://github.com/huggingface/datasets/issues/5009#issuecomment-1254978936): it \"would have to scan the other splits first\", and passing explicit features avoids it.\n- mariosasko in [#5965](https://github.com/huggingface/datasets/issues/5965#issuecomment-1601542007) (a related `map()` case): type promotion allocates memory, and explicit features are the best option.\n- You in #8676, a related case where later chunks add new keys ([Sep 30](https://github.com/huggingface/datasets/pull/8676#issuecomment-5914131654), [Oct 1](https://github.com/huggingface/datasets/pull/8676#issuecomment-5932248824)): holding chunks in memory until the features are known could use too much memory, and documenting the limit and suggesting a larger `chunksize` would be great.\n\n</details>\n\n**An idea that keeps a single pass**\n\n- When a chunk has a real type for a column that is still `null` in the features, widen only that column (the existing `_align_features` already lines up `null` with a real type), close the current shard, and keep writing to a new shard with the widened features.\n- Nothing is buffered or read twice, and files where no column starts as all-null behave exactly as before. Explicit features keep working as they do now.\n- Rows already written keep `null` in their own shard. In a quick check, concatenating a `null` shard with a `string` shard promoted the column, but I still need to confirm this end to end through the reader. If that turns out to be fragile, the earlier shards could be rewritten with a cast from `null`, which is cheap.\n- I'd expect roughly 30 to 40 lines in the JSON builder and `_prepare_split_single`, plus tests. In my tests `streaming=True` fails on this file too; that path would need a separate change, so I'd leave it out unless you'd like both handled together.\n\nWould you be open to this? If you'd rather keep the current behavior, I noticed #8676 already adds a docs note and a `chunksize` hint to the error. That hint only catches `CastError`, and this case raises a plain `TypeError`, so it doesn't show up here. I'd be happy to extend it to this case and include the column name in the message. I'll follow whichever you prefer. Thanks for your time!\n",
+        "created_at": "2026-10-19T14:32:13+00:00"
+      },
+      {
+        "author": "lhoestq",
+        "author_association": "MEMBER",
+        "body": "Let's include this case in the hint in the error message indeed",
+        "created_at": "2026-10-19T14:46:32+00:00"
+      }
+    ],
+    "8849": [],
+    "8719": [
+      {
+        "author": "felipebridge",
+        "author_association": "CONTRIBUTOR",
+        "body": "#self-assign",
+        "created_at": "2026-10-01T23:34:54+00:00"
+      }
+    ],
+    "8713": [
+      {
+        "author": "Samikshakadge-21",
+        "author_association": "NONE",
+        "body": "Hi, I\u2019m interested in contributing to this issue. I\u2019ve gone through the problem and the proposed approach, and I\u2019d like to work on implementing the fix along with the necessary regression tests. Please let me know if this issue is still available to work on or if you are already planning to submit a PR.",
+        "created_at": "2026-10-08T09:32:34+00:00"
+      }
+    ],
+    "8617": [
+      {
+        "author": "NAVEEN10032004K",
+        "author_association": "NONE",
+        "body": "I'd like to take this one.\n\nReproduced on datasets 5.0.1 with the snippet above. `SplitDict.from_split_dict()` reads `dataset_name` via `split_infos[0].get(...)`, which assumes a raw dict, while the loop just below it already handles both dicts and `SplitInfo` objects. I'll branch the lookup the same way and cover both entry types with tests. PR shortly.",
+        "created_at": "2026-09-24T09:07:48+00:00"
+      }
+    ],
+    "8681": [],
+    "8709": [
+      {
+        "author": "charan-rathore",
+        "author_association": "NONE",
+        "body": "#self-assign",
+        "created_at": "2026-09-29T08:18:54+00:00"
+      },
+      {
+        "author": "mertkayacs",
+        "author_association": "NONE",
+        "body": "Still reproduces on current main (18378f732):\n\n```\n>>> string_to_dict(\"train/alice\", \"(train|test)/{name}\")\n{'name': 'train'}\n```\n\nThe cause is in `src/datasets/utils/py_utils.py`: `string_to_dict` builds a named group `(?P<_name>.+)` for each `{field}` (line 182) and then reads `result.groups()` positionally (line 186), so the unrelated `(train|test)` group takes the first slot. Reading `result.group(f\"_{key}\")` for each key, as you propose, fixes it; the placeholder shapes that work today, such as `data/{split}-{shard}-of-{num}.parquet`, keep working because they contain no extra groups.\n\n#8710 was closed by its author on 2026-10-18 without being merged and its branch is gone, so I opened #8848 with that change and a parametrized test covering the example above, a non-capturing group, a caller-named group and the library's own shard pattern.\n",
+        "created_at": "2026-10-18T07:59:09+00:00"
+      }
+    ],
+    "8830": [
+      {
+        "author": "mertkayacs",
+        "author_association": "NONE",
+        "body": "Related: #8681 reports the plain-string side of the same pandas 3 change (`str` columns arrive as `large_string`, which `ClassLabel.cast_storage` does not map either), with the fix in #8688. On current main both shapes fail with the same `ArrowInvalid`; #8833 fixes the `Categorical` (dictionary) shape and #8688 the `large_string` and `string_view` shape, on adjacent lines of `cast_storage`.\n",
+        "created_at": "2026-10-18T07:56:15+00:00"
+      }
+    ],
+    "6948": [
+      {
+        "author": "jinchuntan",
+        "author_association": "CONTRIBUTOR",
+        "body": "#self-assign",
+        "created_at": "2026-10-18T03:20:39+00:00"
+      }
+    ],
+    "7390": [
+      {
+        "author": "charles92",
+        "author_association": "NONE",
+        "body": "A similar issue was fixed for the `transformers` package, too: https://github.com/huggingface/transformers/pull/37022",
+        "created_at": "2025-08-10T00:51:17+00:00"
+      },
+      {
+        "author": "jinchuntan",
+        "author_association": "CONTRIBUTOR",
+        "body": "#self-assign",
+        "created_at": "2026-10-18T03:17:09+00:00"
+      }
+    ],
+    "7088": [
+      {
+        "author": "jinchuntan",
+        "author_association": "CONTRIBUTOR",
+        "body": "#self-assign",
+        "created_at": "2026-10-18T03:15:22+00:00"
+      }
+    ],
+    "7444": [
+      {
+        "author": "wydwww",
+        "author_association": "NONE",
+        "body": "I had a similar issue when loading the saved iterable dataset state to fast-forward to the mid-train location before resuming. This happened when I shuffled a concatenated dataset. A `iterable_data_state_dict.json` file was saved during checkpointing in the Trainer with:\n```\ndef _save_rng_state(self, output_dir):\n    super()._save_rng_state(output_dir)\n    if self.args.should_save:\n        with open(os.path.join(output_dir, f'iterable_data_state_dict.json'), 'w', encoding='utf-8') as fo:\n            json.dump(self.train_dataset.state_dict(), fo, ensure_ascii=False)\n```\nThen when resuming training, I use `load_state_dict` to get the dataset state:\n```\nif training_args.resume_from_checkpoint:\n    if isinstance(training_args.resume_from_checkpoint, bool):\n        resume_from_checkpoint = get_last_checkpoint(training_args.output_dir)\n    else:\n        resume_from_checkpoint = training_args.resume_from_checkpoint\n    last_ckpt_iterable_data_state_dict_file_path = os.path.join(resume_from_checkpoint, f'iterable_data_state_dict.json')\n    if not training_args.ignore_data_skip:\n        raise ValueError(f'Please set `ignore_data_skip`=True to skip tokenization.')\n    with open(last_ckpt_iterable_data_state_dict_file_path, 'r', encoding='utf-8') as f:\n        train_dataset_state_dict = json.load(f)\n        train_dataset.load_state_dict(train_dataset_state_dict)\n        print(f'Loaded train_dataset state from {last_ckpt_iterable_data_state_dict_file_path}')\n```\n\nThen code works fine before I shuffled a subset of the training data to:\n```\nmath_dataset = concatenate_datasets([A, B]).to_iterable_dataset()\nshuffled_math_dataset = math_dataset.shuffle(seed=42, buffer_size=1000000)\n```\n\nOther than the warning, a real problem is that the loss bumped after loading a ckpt:\n\n<img width=\"400\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/c8944e81-9df9-4857-82de-6ab9ebc1b066\" />",
+        "created_at": "2025-05-13T09:41:02+00:00"
+      },
+      {
+        "author": "jianlong-yuan",
+        "author_association": "NONE",
+        "body": "anynews?",
+        "created_at": "2025-11-22T06:45:25+00:00"
+      },
+      {
+        "author": "jinchuntan",
+        "author_association": "CONTRIBUTOR",
+        "body": "#self-assign",
+        "created_at": "2026-10-18T02:52:10+00:00"
+      }
+    ],
+    "6865": [
+      {
+        "author": "jinchuntan",
+        "author_association": "CONTRIBUTOR",
+        "body": "#self-assign",
+        "created_at": "2026-10-18T02:46:03+00:00"
+      }
+    ],
+    "6819": [
+      {
+        "author": "jinchuntan",
+        "author_association": "CONTRIBUTOR",
+        "body": "I can reproduce this on main with a README config that points to missing files. I'll add the config name to the error so it's clear which entry needs fixing.\n\n#self-assign",
+        "created_at": "2026-10-18T02:34:01+00:00"
+      },
+      {
+        "author": "jinchuntan",
+        "author_association": "CONTRIBUTOR",
+        "body": "#self-assign",
+        "created_at": "2026-10-18T02:34:36+00:00"
+      }
+    ]
+  },
+  "linked_prs": {
+    "8888": [
+      {
+        "number": 8889,
+        "title": "Keep row validity and payloads in fixed-shape ArrayXD pandas round trips",
+        "state": "open",
+        "linked_at": "2026-10-24T01:50:24+00:00"
+      }
+    ],
+    "8859": [
+      {
+        "number": 8865,
+        "title": "Fix concatenation cache fingerprints for different axes",
+        "state": "merged",
+        "linked_at": "2026-10-20T09:22:25+00:00"
+      }
+    ],
+    "8743": [
+      {
+        "number": 8744,
+        "title": "Close Parquet export writer on batch and metadata errors",
+        "state": "open",
+        "linked_at": "2026-10-05T15:31:19+00:00"
+      },
+      {
+        "number": 8775,
+        "title": "fix: close parquet writer even when export fails (#8743)",
+        "state": "open",
+        "linked_at": "2026-10-09T09:37:46+00:00"
+      },
+      {
+        "number": 8885,
+        "title": "Close Parquet export writers with a context manager",
+        "state": "open",
+        "linked_at": "2026-10-23T10:20:19+00:00"
+      }
+    ],
+    "7290": [
+      {
+        "number": 8880,
+        "title": "Fix save_to_disk sending the whole table to every worker for in-memory datasets",
+        "state": "open",
+        "linked_at": "2026-10-23T04:40:00+00:00"
+      }
+    ],
+    "8877": [
+      {
+        "number": 8881,
+        "title": "include bound SQL values in the dataset cache key",
+        "state": "open",
+        "linked_at": "2026-10-23T04:55:35+00:00"
+      },
+      {
+        "number": 8886,
+        "title": "Fix SQLAlchemy query cache collisions for bound parameters",
+        "state": "open",
+        "linked_at": "2026-10-23T10:33:41+00:00"
+      }
+    ],
+    "5225": [
+      {
+        "number": 5339,
+        "title": "Add Video feature, videofolder, and video-classification task",
+        "state": "closed",
+        "linked_at": "2022-12-07T20:48:35+00:00"
+      }
+    ],
+    "8799": [
+      {
+        "number": 8800,
+        "title": "Fix concatenate_datasets giving every rank all the data after split_dataset_by_node",
+        "state": "merged",
+        "linked_at": "2026-10-14T04:34:51+00:00"
+      }
+    ],
+    "8242": [],
+    "8863": [
+      {
+        "number": 8864,
+        "title": "Keep threaded decoding reconfigurable after IterableDataset.shard",
+        "state": "open",
+        "linked_at": "2026-10-20T09:17:54+00:00"
+      }
+    ],
+    "7222": [
+      {
+        "number": 8676,
+        "title": "Fix JSON loader when mixed-shape JSONL chunks differ by keys",
+        "state": "open",
+        "linked_at": "2026-10-19T14:56:13+00:00"
+      }
+    ],
+    "8849": [
+      {
+        "number": 8850,
+        "title": "Apply cast and cast_column below threaded decoding in IterableDataset",
+        "state": "open",
+        "linked_at": "2026-10-18T13:29:50+00:00"
+      }
+    ],
+    "8719": [
+      {
+        "number": 8723,
+        "title": "Fix concatenate_datasets(axis=1) on arrow-backed iterable datasets with different lengths",
+        "state": "closed",
+        "linked_at": "2026-10-01T23:35:03+00:00"
+      }
+    ],
+    "8713": [
+      {
+        "number": 8715,
+        "title": "Fix Json casts of mixed encoded and plain strings",
+        "state": "open",
+        "linked_at": "2026-09-30T14:15:46+00:00"
+      },
+      {
+        "number": 8794,
+        "title": "Fix JSON loader turning plain strings into other types in inferred Json columns",
+        "state": "open",
+        "linked_at": "2026-10-13T21:11:17+00:00"
+      }
+    ],
+    "8617": [
+      {
+        "number": 8619,
+        "title": "Fix SplitDict.copy() crashing when dataset_name is None",
+        "state": "closed",
+        "linked_at": "2026-09-14T11:15:58+00:00"
+      },
+      {
+        "number": 8805,
+        "title": "fix(splits): handle SplitInfo objects in SplitDict.from_split_dict",
+        "state": "open",
+        "linked_at": "2026-10-14T18:15:00+00:00"
+      }
+    ],
+    "8681": [
+      {
+        "number": 8682,
+        "title": "Fix Json.cast_storage double-encoding large_string and string_view columns",
+        "state": "merged",
+        "linked_at": "2026-09-24T20:55:23+00:00"
+      },
+      {
+        "number": 8688,
+        "title": "Cast large_string and string_view storage in ClassLabel",
+        "state": "open",
+        "linked_at": "2026-09-26T02:38:50+00:00"
+      },
+      {
+        "number": 8833,
+        "title": "Cast dictionary-encoded storage such as pandas Categorical columns in ClassLabel",
+        "state": "open",
+        "linked_at": "2026-10-18T08:03:41+00:00"
+      }
+    ],
+    "8709": [
+      {
+        "number": 8710,
+        "title": "Fix string_to_dict with unrelated regex capture groups",
+        "state": "closed",
+        "linked_at": "2026-09-29T08:22:11+00:00"
+      },
+      {
+        "number": 8848,
+        "title": "Read string_to_dict fields by group name instead of position",
+        "state": "open",
+        "linked_at": "2026-10-18T07:59:08+00:00"
+      }
+    ],
+    "8830": [
+      {
+        "number": 8833,
+        "title": "Cast dictionary-encoded storage such as pandas Categorical columns in ClassLabel",
+        "state": "open",
+        "linked_at": "2026-10-17T23:27:19+00:00"
+      }
+    ],
+    "6948": [
+      {
+        "number": 8847,
+        "title": "Hide GPUs before spawning TensorFlow data workers",
+        "state": "open",
+        "linked_at": "2026-10-18T03:27:00+00:00"
+      }
+    ],
+    "7390": [
+      {
+        "number": 8846,
+        "title": "Restore packaged type information and public re-exports",
+        "state": "open",
+        "linked_at": "2026-10-18T03:26:33+00:00"
+      }
+    ],
+    "7088": [
+      {
+        "number": 8845,
+        "title": "Copy existing tensors without a PyTorch warning",
+        "state": "open",
+        "linked_at": "2026-10-18T03:26:08+00:00"
+      }
+    ],
+    "7444": [
+      {
+        "number": 8844,
+        "title": "Warn once when resuming a shuffled dataset",
+        "state": "open",
+        "linked_at": "2026-10-18T02:57:44+00:00"
+      }
+    ],
+    "6865": [
+      {
+        "number": 8843,
+        "title": "Fix mask resizing in the semantic segmentation guide",
+        "state": "open",
+        "linked_at": "2026-10-18T02:48:20+00:00"
+      }
+    ],
+    "6819": [
+      {
+        "number": 8842,
+        "title": "Include the config name when no data files are found",
+        "state": "open",
+        "linked_at": "2026-10-18T02:40:10+00:00"
+      }
+    ]
+  }
+}

@@ -1,0 +1,197 @@
+{
+  "fixture": "tests/fixtures/huggingface__datasets_week.json",
+  "instructions": "For each issue, read the thread on GitHub as it was at 2026-10-25 05:13 UTC and set 'status' to one label from 'status_labels'. Label before looking at any model output. Leave status null to skip an issue.",
+  "status_labels": {
+    "needs_triage": "no maintainer has replied yet and no PR is open",
+    "waiting_on_maintainer": "maintainer's move: a linked PR is open and awaits review/merge, or the reporter or a user replied last",
+    "waiting_on_reporter": "a maintainer asked for info/repro; reporter's move",
+    "fix_in_progress": "someone said they are working on a fix, but no PR is open yet",
+    "resolved": "fixed (e.g. linked PR merged), answered, duplicate, or otherwise done (even if open)"
+  },
+  "labels": [
+    {
+      "number": 8888,
+      "title": "Fixed-shape ArrayXD pandas round trips lose row nulls and integer precision",
+      "url": "https://github.com/huggingface/datasets/issues/8888",
+      "state": "open",
+      "status": "waiting_on_maintainer",
+      "note": "Waiting for PR to be merged."
+    },
+    {
+      "number": 8859,
+      "title": "concatenate_datasets reuses preprocessing caches across different axes",
+      "url": "https://github.com/huggingface/datasets/issues/8859",
+      "state": "closed",
+      "status": "resolved",
+      "note": ""
+    },
+    {
+      "number": 8743,
+      "title": "Parquet export does not close its writer after a batch or metadata failure",
+      "url": "https://github.com/huggingface/datasets/issues/8743",
+      "state": "open",
+      "status": "waiting_on_maintainer",
+      "note": ""
+    },
+    {
+      "number": 7290,
+      "title": "`Dataset.save_to_disk` hangs when using num_proc > 1",
+      "url": "https://github.com/huggingface/datasets/issues/7290",
+      "state": "open",
+      "status": "waiting_on_maintainer",
+      "note": ""
+    },
+    {
+      "number": 8877,
+      "title": "Dataset.from_sql caches different SQLAlchemy queries under the same key when bound values change",
+      "url": "https://github.com/huggingface/datasets/issues/8877",
+      "state": "open",
+      "status": "waiting_on_maintainer",
+      "note": ""
+    },
+    {
+      "number": 5225,
+      "title": "Add video feature",
+      "url": "https://github.com/huggingface/datasets/issues/5225",
+      "state": "open",
+      "status": "waiting_on_maintainer",
+      "note": ""
+    },
+    {
+      "number": 8799,
+      "title": "concatenate_datasets drops the split_dataset_by_node split, so every rank gets all the data",
+      "url": "https://github.com/huggingface/datasets/issues/8799",
+      "state": "closed",
+      "status": "resolved",
+      "note": ""
+    },
+    {
+      "number": 8242,
+      "title": "\"eval_strategy\": \"no\" perform evaluation",
+      "url": "https://github.com/huggingface/datasets/issues/8242",
+      "state": "open",
+      "status": "needs_triage",
+      "note": "Relabeled from resolved: the commenter (matdou) is role NONE, not a maintainer, so no maintainer has replied. Original note: user said not a bug, belongs in another repository."
+    },
+    {
+      "number": 8863,
+      "title": "IterableDataset.decode(False) has no effect after shard() on a streamed media dataset",
+      "url": "https://github.com/huggingface/datasets/issues/8863",
+      "state": "open",
+      "status": "waiting_on_maintainer",
+      "note": "Pull request waiting to be merged."
+    },
+    {
+      "number": 7222,
+      "title": "TypeError: Couldn't cast array of type string to null in long json",
+      "url": "https://github.com/huggingface/datasets/issues/7222",
+      "state": "open",
+      "status": "waiting_on_maintainer",
+      "note": "Pull request waiting to be merged."
+    },
+    {
+      "number": 8849,
+      "title": "cast_column / cast are ignored on streaming datasets decoded in threads (audio sampling_rate, decode=False)",
+      "url": "https://github.com/huggingface/datasets/issues/8849",
+      "state": "open",
+      "status": "waiting_on_maintainer",
+      "note": "Pull request has conflicts."
+    },
+    {
+      "number": 8719,
+      "title": "concatenate_datasets(axis=1) crashes on arrow-backed IterableDatasets with different lengths",
+      "url": "https://github.com/huggingface/datasets/issues/8719",
+      "state": "open",
+      "status": "waiting_on_maintainer",
+      "note": "Reporter re-mentions the bug in closed PR. Kept after review: PR #8723 closed unmerged; reporter re-raised it, so maintainer's move."
+    },
+    {
+      "number": 8713,
+      "title": "JSON loader turns strings like \"123\" or \"null\" into other types in inferred Json columns",
+      "url": "https://github.com/huggingface/datasets/issues/8713",
+      "state": "open",
+      "status": "waiting_on_maintainer",
+      "note": "Waiting for PR to be merged."
+    },
+    {
+      "number": 8617,
+      "title": "`SplitDict.copy()` crashes when `dataset_name` is not set",
+      "url": "https://github.com/huggingface/datasets/issues/8617",
+      "state": "open",
+      "status": "waiting_on_maintainer",
+      "note": "Waiting for PR to be merged."
+    },
+    {
+      "number": 8681,
+      "title": "Casting `large_string` / `string_view` to ClassLabel fails, so `Dataset.from_pandas(df, features=ClassLabel)` breaks with pandas 3",
+      "url": "https://github.com/huggingface/datasets/issues/8681",
+      "state": "open",
+      "status": "waiting_on_maintainer",
+      "note": "Waiting for PR to be merged."
+    },
+    {
+      "number": 8709,
+      "title": "string_to_dict maps fields to unrelated regex capture groups",
+      "url": "https://github.com/huggingface/datasets/issues/8709",
+      "state": "open",
+      "status": "waiting_on_maintainer",
+      "note": "Waiting for PR to be merged."
+    },
+    {
+      "number": 8830,
+      "title": "ClassLabel.cast_storage fails on a pandas Categorical column (dictionary-encoded Arrow storage)",
+      "url": "https://github.com/huggingface/datasets/issues/8830",
+      "state": "open",
+      "status": "waiting_on_maintainer",
+      "note": "Waiting for PR to be merged."
+    },
+    {
+      "number": 6948,
+      "title": "to_tf_dataset: Visible devices cannot be modified after being initialized",
+      "url": "https://github.com/huggingface/datasets/issues/6948",
+      "state": "open",
+      "status": "waiting_on_maintainer",
+      "note": "Waiting for PR to be merged."
+    },
+    {
+      "number": 7390,
+      "title": "Re-add py.typed",
+      "url": "https://github.com/huggingface/datasets/issues/7390",
+      "state": "open",
+      "status": "waiting_on_maintainer",
+      "note": "Waiting for PR to be merged."
+    },
+    {
+      "number": 7088,
+      "title": "Disable warning when using with_format format on tensors",
+      "url": "https://github.com/huggingface/datasets/issues/7088",
+      "state": "open",
+      "status": "waiting_on_maintainer",
+      "note": "Waiting for PR to be merged."
+    },
+    {
+      "number": 7444,
+      "title": "Excessive warnings when resuming an IterableDataset+buffered shuffle+DDP.",
+      "url": "https://github.com/huggingface/datasets/issues/7444",
+      "state": "open",
+      "status": "waiting_on_maintainer",
+      "note": "Waiting for PR to be merged."
+    },
+    {
+      "number": 6865,
+      "title": "Example on Semantic segmentation contains bug",
+      "url": "https://github.com/huggingface/datasets/issues/6865",
+      "state": "open",
+      "status": "waiting_on_maintainer",
+      "note": "Waiting for PR to be merged."
+    },
+    {
+      "number": 6819,
+      "title": "Give more details in `DataFilesNotFoundError` when getting the config names",
+      "url": "https://github.com/huggingface/datasets/issues/6819",
+      "state": "open",
+      "status": "waiting_on_maintainer",
+      "note": "Waiting for PR to be merged."
+    }
+  ]
+}

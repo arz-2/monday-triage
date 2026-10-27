@@ -1,0 +1,651 @@
+{
+  "name": "linked-prs",
+  "model": "claude-haiku-5-5",
+  "prompt_file": "src/monday_triage/prompts/thread_state.md",
+  "repeats": 3,
+  "report": {
+    "accuracy_per_run": [
+      0.8260869565217391,
+      0.9130434782608695,
+      0.9130434782608695
+    ],
+    "accuracy_mean": 0.8840579710144927,
+    "coverage_per_run": [
+      0.5652173913043478,
+      0.6086956521739131,
+      0.6086956521739131
+    ],
+    "cost_usd_total": 0.030586800000000004,
+    "confusion": [
+      {
+        "expected": "waiting_on_maintainer",
+        "model": "fix_in_progress",
+        "count": 5
+      },
+      {
+        "expected": "resolved",
+        "model": "needs_triage",
+        "count": 2
+      },
+      {
+        "expected": "resolved",
+        "model": "waiting_on_maintainer",
+        "count": 1
+      }
+    ],
+    "disagreements": [
+      {
+        "number": 5225,
+        "state": "open",
+        "expected": "waiting_on_maintainer",
+        "model": {
+          "fix_in_progress": 1,
+          "waiting_on_maintainer": 2
+        }
+      },
+      {
+        "number": 6948,
+        "state": "open",
+        "expected": "waiting_on_maintainer",
+        "model": {
+          "fix_in_progress": 1,
+          "waiting_on_maintainer": 2
+        }
+      },
+      {
+        "number": 8242,
+        "state": "open",
+        "expected": "resolved",
+        "model": {
+          "needs_triage": 2,
+          "waiting_on_maintainer": 1
+        }
+      },
+      {
+        "number": 8719,
+        "state": "open",
+        "expected": "waiting_on_maintainer",
+        "model": {
+          "fix_in_progress": 3
+        }
+      }
+    ]
+  },
+  "runs": [
+    {
+      "statuses": {
+        "8877": "waiting_on_maintainer",
+        "8859": "resolved",
+        "8888": "waiting_on_maintainer",
+        "7290": "waiting_on_maintainer",
+        "8743": "waiting_on_maintainer",
+        "8799": "resolved",
+        "8863": "waiting_on_maintainer",
+        "5225": "fix_in_progress",
+        "8242": "needs_triage",
+        "8849": "waiting_on_maintainer",
+        "7222": "waiting_on_maintainer",
+        "8719": "fix_in_progress",
+        "8713": "waiting_on_maintainer",
+        "8709": "waiting_on_maintainer",
+        "8681": "waiting_on_maintainer",
+        "8617": "waiting_on_maintainer",
+        "6948": "fix_in_progress",
+        "8830": "waiting_on_maintainer",
+        "7088": "waiting_on_maintainer",
+        "6865": "waiting_on_maintainer",
+        "7444": "waiting_on_maintainer",
+        "7390": "waiting_on_maintainer",
+        "6819": "waiting_on_maintainer"
+      },
+      "summaries": {
+        "8877": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The reporter says the SQLAlchemy cache key ignores bound parameter values, and two open PRs (#8881, #8886) address it. The reporter has self-assigned, and no maintainer has replied yet.",
+          "what_changed": "The issue was opened on 2026-10-22, both linked PRs were opened, and the reporter self-assigned in a comment."
+        },
+        "8859": {
+          "status": "resolved",
+          "where_it_stands": "The issue is closed. Linked pull request #8865, which adds the axis to the concatenation cache fingerprint, has been merged.",
+          "what_changed": "The reporter opened the issue on 2026-10-20 describing a cache collision between axis=0 and axis=1 concatenations. PR #8865 was linked and merged, and the reporter commented #self-assign."
+        },
+        "8888": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Issue is open, and linked PR #8889 is open with a fix for the fixed-shape ArrayXD pandas round trip, so it is waiting on maintainer review.",
+          "what_changed": "@choksi2212 opened PR #8889, which keeps row nulls and exact integer payloads through the pandas round trip. They noted that pd.concat still fails on this PR and on main, and left that to #8867."
+        },
+        "7290": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Issue is open, and linked pull request #8880 is open and awaiting review, which fixes save_to_disk sending the whole table to every worker for in-memory datasets. The thread reports slowdowns with num_proc > 1 and was never explicitly resolved.",
+          "what_changed": "PR #8880 was linked, a contributor (hzmsh) explained that each shard pickles its full parent Arrow buffers and reported measured speed and memory gains, and the same contributor self-assigned the issue."
+        },
+        "8743": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Issue is open with two open linked PRs (#8744 and #8775) that both close the Parquet writer on failure, and no maintainer has replied in the thread. A maintainer needs to review them.",
+          "what_changed": "wpyaoxueros self-assigned the issue, then asked a maintainer to unassign them after finding the existing PRs. They also opened PR #8885 as a context-manager alternative to the existing fixes."
+        },
+        "8799": {
+          "status": "resolved",
+          "where_it_stands": "The issue is closed. Linked PR #8800, which fixes concatenate_datasets so each rank gets only its split, is merged.",
+          "what_changed": "No new comments."
+        },
+        "8863": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The reporter says decode(False) after shard() still returns decoded images because shard_data_sources drops decoding_pool, so the threaded decoding step is not recognized. Linked PR #8864 is open and waiting for review or merge.",
+          "what_changed": "The issue, its reproduction steps, and PR #8864 (keeping threaded decoding reconfigurable after shard) were all added in this window."
+        },
+        "5225": {
+          "status": "fix_in_progress",
+          "where_it_stands": "Linked PR #5339 is closed and no new PR is open. LeonxLJX claimed the work in September 2026, but no maintainer has replied in this thread. Whether PR #5339 was merged is not stated.",
+          "what_changed": "sharmis-tp offered to help and said recent releases appear to ship a Video feature, which is unverified. They asked whether the issue is still open or can be closed."
+        },
+        "8242": {
+          "status": "needs_triage",
+          "where_it_stands": "Open with no linked pull requests and no maintainer reply. A non-maintainer commenter suggested the hang comes from the diffusion plugin's sample generation callback and proposed setting generate_samples: false, and also said the issue belongs in the axolotl repo.",
+          "what_changed": "No new comments."
+        },
+        "8849": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Issue #8849 is open. The reporter says cast and cast_column are ignored on streaming datasets that decode in threads, so audio is not resampled and Image(decode=False) still yields decoded images. Linked PR #8850 is open and awaits review.",
+          "what_changed": "The issue was opened by @sebxt with a reproduction and root-cause analysis, and PR #8850 was opened to apply cast and cast_column below threaded decoding. The thread has no maintainer replies yet."
+        },
+        "7222": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The root cause is a column typed `null` from the first chunk, then strings later. PR #8676 is open and linked, and a maintainer asked to extend its error hint to this case.",
+          "what_changed": "PR #8676 was linked to the issue. hzmsh proposed a single-pass fix and offered to extend the hint, and lhoestq replied that this case should be included in the error message hint."
+        },
+        "8719": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The issue is open and a contributor self-assigned it on 2026-10-01. Linked PR #8723 is closed, and the thread does not say whether it was merged, so no fix is confirmed.",
+          "what_changed": "No new comments."
+        },
+        "8713": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Two linked pull requests are open, #8715 and #8794, both addressing the JSON loader decoding plain strings in inferred Json columns. The reporter proposed a fix limited to the inferred path, and a contributor asked on 2026-10-08 about working on it.",
+          "what_changed": "No new comments."
+        },
+        "8709": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The bug reproduces on current main. Open PR #8848 fixes it by reading fields by group name, with tests, and it is waiting for review. Earlier PR #8710 was closed without merging.",
+          "what_changed": "@mertkayacs confirmed the bug on main, explained the positional-group cause, and opened PR #8848 with the fix and a parametrized test. PR #8848 is new this window."
+        },
+        "8681": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The issue is open with no maintainer comments. PR #8688 (open) fixes the large_string and string_view casting in ClassLabel, and PR #8682 (merged) fixes a different issue in Json.cast_storage.",
+          "what_changed": "PR #8833 (open) was linked. It casts dictionary-encoded storage, such as pandas Categorical columns, in ClassLabel."
+        },
+        "8617": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Open PR #8805 from the reporter's thread-linked contributor addresses the `SplitInfo` handling in `from_split_dict` and is awaiting review. Earlier PR #8619 is listed as closed, and the thread does not say whether it was merged.",
+          "what_changed": "No new comments."
+        },
+        "6948": {
+          "status": "fix_in_progress",
+          "where_it_stands": "Reporter describes a RuntimeError when using to_tf_dataset with num_workers, caused by setting TensorFlow visible devices in worker processes after initialization. No maintainer has replied.",
+          "what_changed": "A contributor self-assigned the issue, and PR #8847 (open) was linked: 'Hide GPUs before spawning TensorFlow data workers'."
+        },
+        "8830": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The bug is open, and PR #8833 (cast dictionary-encoded storage such as pandas Categorical in ClassLabel) is open and awaiting review or merge.",
+          "what_changed": "The reporter linked related issue #8681 and its fix PR #8688, which cover the pandas 3 large_string case that also fails in ClassLabel.cast_storage. They noted that #8833 fixes the Categorical shape and #8688 the string shape."
+        },
+        "7088": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The issue is open. Linked PR #8845 (Copy existing tensors without a PyTorch warning) is open and awaiting review or merge.",
+          "what_changed": "@jinchuntan (CONTRIBUTOR) commented \"#self-assign\" on 2026-10-18, and PR #8845 was linked in the window."
+        },
+        "6865": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The reporter says the torchvision Resize example in the semantic segmentation guide blurs mask boundaries via bilinear interpolation. PR #8843 to fix mask resizing is open and awaiting review or merge.",
+          "what_changed": "A contributor (@jinchuntan) self-assigned the issue, and PR #8843 was opened and linked."
+        },
+        "7444": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Resuming a shuffled IterableDataset with DDP prints the shuffle-buffer warning thousands of times. Linked PR #8844, which would warn once instead, is open and awaiting review.",
+          "what_changed": "PR #8844 'Warn once when resuming a shuffled dataset' was linked, and a contributor (jinchuntan) commented '#self-assign'."
+        },
+        "7390": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Issue is open to re-add py.typed for PEP 561 type checking. Pull request #8846, which restores packaged type information and public re-exports, is open and linked to this issue.",
+          "what_changed": "PR #8846 was linked and opened, and @jinchuntan commented \"#self-assign\"."
+        },
+        "6819": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Issue is open and PR #8842 (include the config name when no data files are found) is open and linked, waiting for review or merge.",
+          "what_changed": "Contributor jinchuntan said they reproduced the bug on main and will add the config name to the error, then self-assigned the issue twice. PR #8842 was opened and linked."
+        }
+      },
+      "themes": [
+        {
+          "name": "Streaming decode and cast",
+          "description": "Streaming or IterableDataset pipelines ignore cast and decode settings once data is decoded in threads or sharded.",
+          "issues": [
+            8863,
+            8849
+          ]
+        },
+        {
+          "name": "Concatenation",
+          "description": "concatenate_datasets gives wrong results or crashes across axes, caches, and rank splits.",
+          "issues": [
+            8859,
+            8799,
+            8719
+          ]
+        },
+        {
+          "name": "Type casting",
+          "description": "Casting values to ClassLabel, JSON, or fixed-shape array types fails or changes data unexpectedly.",
+          "issues": [
+            7222,
+            8681,
+            8830,
+            8713
+          ]
+        },
+        {
+          "name": "Warnings noise",
+          "description": "Library warnings fire repeatedly or unnecessarily during tensor formatting and resumed DDP training.",
+          "issues": [
+            7088,
+            7444
+          ]
+        },
+        {
+          "name": "Save and export",
+          "description": "Writing datasets to disk or Parquet hangs, leaks resources, or slows down under multiprocessing.",
+          "issues": [
+            8743,
+            7290
+          ]
+        }
+      ],
+      "themes_dropped": [],
+      "coverage": 0.5652173913043478,
+      "cost_usd": 0.010253400000000001,
+      "calls": 24
+    },
+    {
+      "statuses": {
+        "8877": "waiting_on_maintainer",
+        "8859": "resolved",
+        "8743": "waiting_on_maintainer",
+        "7290": "waiting_on_maintainer",
+        "8888": "waiting_on_maintainer",
+        "8799": "resolved",
+        "8863": "waiting_on_maintainer",
+        "8242": "waiting_on_maintainer",
+        "8849": "waiting_on_maintainer",
+        "5225": "waiting_on_maintainer",
+        "7222": "waiting_on_maintainer",
+        "8719": "fix_in_progress",
+        "8713": "waiting_on_maintainer",
+        "8617": "waiting_on_maintainer",
+        "8681": "waiting_on_maintainer",
+        "8709": "waiting_on_maintainer",
+        "6948": "waiting_on_maintainer",
+        "8830": "waiting_on_maintainer",
+        "7088": "waiting_on_maintainer",
+        "7390": "waiting_on_maintainer",
+        "6865": "waiting_on_maintainer",
+        "7444": "waiting_on_maintainer",
+        "6819": "waiting_on_maintainer"
+      },
+      "summaries": {
+        "8877": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Two linked pull requests (#8881 and #8886) are open, so the next step is maintainer review, and the reporter has offered to coordinate with #8752. No maintainer has replied yet.",
+          "what_changed": "The issue was opened, both PRs #8881 and #8886 were linked, and the reporter commented #self-assign."
+        },
+        "8859": {
+          "status": "resolved",
+          "where_it_stands": "Issue is closed. Linked PR #8865, which fixes the concatenation cache fingerprints for different axes, has been merged.",
+          "what_changed": "The reporter opened the issue on 2026-10-20 describing the cache collision between axis=0 and axis=1 concatenations. PR #8865 was merged, and the reporter commented \"#self-assign\"."
+        },
+        "8743": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Three linked pull requests (#8744, #8775, #8885) are open and none has been merged, so the next step is maintainer review. No maintainer has commented on the thread.",
+          "what_changed": "The contributor self-assigned the issue, then withdrew in favor of #8744 and #8775 and asked a maintainer to unassign them. They then opened #8885 as an alternative context-manager fix with regression tests."
+        },
+        "7290": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The issue is open, and linked PR #8880 is open to stop `save_to_disk` from sending the whole table to every worker, so it is waiting for maintainer review.",
+          "what_changed": "PR #8880 was opened. @hzmsh explained that each shard pickles its full parent Arrow buffers, and reported memory and timing numbers from local runs. They then self-assigned the issue."
+        },
+        "8888": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Linked PR #8889 is open and proposes preserving row nulls and exact integer payloads in fixed-shape ArrayXD pandas round trips. Concatenation via pd.concat is left to open issue #8867.",
+          "what_changed": "choksi2212 opened PR #8889 and commented that it keeps row validity, integer precision, and the all-NaN-versus-null distinction, while leaving the Python read path and dynamic-shape path unchanged."
+        },
+        "8799": {
+          "status": "resolved",
+          "where_it_stands": "The issue is closed. Linked PR #8800 (fixing concatenate_datasets giving every rank all the data after split_dataset_by_node) was merged.",
+          "what_changed": "No new comments."
+        },
+        "8863": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "After shard(), decode(False) still returns decoded images because the threaded decoding step is lost. Linked PR #8864 is open and awaiting review.",
+          "what_changed": "The reporter opened the issue on 2026-10-20 with a reproduction, and PR #8864 was linked as open."
+        },
+        "8242": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The issue is open with no linked pull request. A non-maintainer replied on 2026-06-20 that it belongs in the axolotl repo and that the diffusion plugin's sample generation, not eval, causes the hang. No maintainer has responded or confirmed.",
+          "what_changed": "No new comments."
+        },
+        "8849": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Issue #8849 reports that cast_column and cast are ignored on streaming datasets decoded in threads, so audio sampling_rate and decode=False casts have no effect. Pull request #8850, which applies cast and cast_column below the threaded decoding step, is open and awaiting review.",
+          "what_changed": "The issue was opened by @sebxt and PR #8850 was linked. The thread has no comments yet."
+        },
+        "5225": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The linked PR #5339 is closed and no pull request is open. LeonxLJX claimed the work on 2026-09-01, but no fix has been posted, and no maintainer has replied in this thread.",
+          "what_changed": "sharmis-tp offered to help on 2026-10-22, said recent releases appear to ship a Video feature (not verified in the thread), and asked whether the issue is still open or can be closed."
+        },
+        "7222": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The issue is open: a column that is all null in the first chunk gets typed null, and later string values fail with a TypeError. Linked PR #8676 is open, and it has not been merged.",
+          "what_changed": "PR #8676 was linked, and contributor hzmsh proposed a single-pass fix and offered to extend the chunksize hint to this case. Maintainer lhoestq replied that this case should be included in the hint in the error message."
+        },
+        "8719": {
+          "status": "fix_in_progress",
+          "where_it_stands": "The issue is open and a contributor (@felipebridge) self-assigned it on 2026-10-01. Linked PR #8723 is closed without merging, and no open PR is linked.",
+          "what_changed": "No new comments."
+        },
+        "8713": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Two linked pull requests are open, #8715 and #8794, both aimed at the JSON loader mis-decoding plain strings. The reporter proposed a scoped fix limited to the inferred path, and a contributor asked on 2026-10-08 about working on it.",
+          "what_changed": "No new comments."
+        },
+        "8617": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Open PR #8805 fixes `from_split_dict` to handle `SplitInfo` objects and is awaiting review. Earlier PR #8619 was closed without merging.",
+          "what_changed": "No new comments."
+        },
+        "8681": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The issue is open, and PR #8688 (cast large_string and string_view storage in ClassLabel) is open and awaiting review or merge. PR #8682 was merged but covers Json casting, not this ClassLabel bug.",
+          "what_changed": "PR #8833 was opened and linked, casting dictionary-encoded storage such as pandas Categorical columns in ClassLabel. The thread has no comments."
+        },
+        "8709": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The bug reproduces on current main: unrelated regex capture groups shift field values in string_to_dict. Fix PR #8848 is open with a parametrized test, and earlier PR #8710 was closed without merging.",
+          "what_changed": "A new comment confirmed the bug on main, traced the cause to positional reading of groups, and opened PR #8848 to read fields by group name. PR #8710 was closed unmerged on 2026-10-18."
+        },
+        "6948": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Issue is open with linked PR #8847 (Hide GPUs before spawning TensorFlow data workers) still open and awaiting review or merge.",
+          "what_changed": "PR #8847 was opened, and contributor @jinchuntan commented \"#self-assign\"."
+        },
+        "8830": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Issue #8830 is open with PR #8833 (cast dictionary-encoded storage such as pandas Categorical in ClassLabel) still open and awaiting review. No maintainer has replied yet.",
+          "what_changed": "The reporter commented that related issue #8681 and PR #8688 cover the pandas 3 large_string case in the same function, on adjacent lines of cast_storage."
+        },
+        "7088": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The reporter describes a UserWarning raised when with_format('torch') wraps existing torch.Tensor values with torch.tensor(). A proposed fix is in PR #8845, which is open and awaiting review or merge.",
+          "what_changed": "Contributor @jinchuntan commented \"#self-assign\", and PR #8845 (\"Copy existing tensors without a PyTorch warning\") was linked to the issue."
+        },
+        "7390": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Pull request #8846 (restoring packaged type information and public re-exports) is open and linked to this issue, so it is waiting for maintainer review or merge.",
+          "what_changed": "PR #8846 was linked, and @jinchuntan posted \"#self-assign\" on the issue."
+        },
+        "6865": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The issue reports that torchvision Resize uses bilinear interpolation on segmentation masks, producing wrong boundary colors in the semantic segmentation guide. An open pull request, PR #8843, is linked to fix mask resizing.",
+          "what_changed": "A contributor (@jinchuntan) self-assigned the issue, and PR #8843 was opened and linked."
+        },
+        "7444": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The issue has been open since March 2025 about repeated shuffle-buffer warnings when resuming an IterableDataset with buffered shuffle and DDP. Pull request #8844, which warns once on resume, is open and awaiting review or merge.",
+          "what_changed": "Pull request #8844 (\"Warn once when resuming a shuffled dataset\") was linked and is open. A contributor, @jinchuntan, commented \"#self-assign\"."
+        },
+        "6819": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The issue is open, and PR #8842 (include the config name when no data files are found) is open and linked to it. The PR is waiting for maintainer review.",
+          "what_changed": "PR #8842 was opened and linked. Contributor @jinchuntan reproduced the bug, said they would add the config name to the error, and self-assigned the issue."
+        }
+      },
+      "themes": [
+        {
+          "name": "Streaming and media decoding",
+          "description": "Bugs in IterableDataset streaming, threaded decoding of media, and resuming or sharding streamed data.",
+          "issues": [
+            8863,
+            8849,
+            7444,
+            5225
+          ]
+        },
+        {
+          "name": "Type casting",
+          "description": "Casting values to ClassLabel, null, or JSON-inferred types fails or silently changes data.",
+          "issues": [
+            8681,
+            8830,
+            7222,
+            8713
+          ]
+        },
+        {
+          "name": "Concatenation",
+          "description": "concatenate_datasets gives wrong results along the row or column axis, including cache reuse and per-rank splits.",
+          "issues": [
+            8859,
+            8799,
+            8719
+          ]
+        },
+        {
+          "name": "Saving and caching",
+          "description": "Writing datasets to disk or Parquet and reusing cache entries for SQL-backed datasets go wrong.",
+          "issues": [
+            8877,
+            8743,
+            7290
+          ]
+        }
+      ],
+      "themes_dropped": [],
+      "coverage": 0.6086956521739131,
+      "cost_usd": 0.0102155,
+      "calls": 24
+    },
+    {
+      "statuses": {
+        "8877": "waiting_on_maintainer",
+        "8859": "resolved",
+        "7290": "waiting_on_maintainer",
+        "8888": "waiting_on_maintainer",
+        "8743": "waiting_on_maintainer",
+        "8799": "resolved",
+        "8863": "waiting_on_maintainer",
+        "8242": "needs_triage",
+        "7222": "waiting_on_maintainer",
+        "8849": "waiting_on_maintainer",
+        "5225": "waiting_on_maintainer",
+        "8713": "waiting_on_maintainer",
+        "8719": "fix_in_progress",
+        "8709": "waiting_on_maintainer",
+        "8681": "waiting_on_maintainer",
+        "8617": "waiting_on_maintainer",
+        "6948": "waiting_on_maintainer",
+        "7088": "waiting_on_maintainer",
+        "8830": "waiting_on_maintainer",
+        "7390": "waiting_on_maintainer",
+        "6865": "waiting_on_maintainer",
+        "7444": "waiting_on_maintainer",
+        "6819": "waiting_on_maintainer"
+      },
+      "summaries": {
+        "8877": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The issue is open with two linked pull requests, #8881 and #8886, both open and awaiting review. The reporter has self-assigned.",
+          "what_changed": "The reporter opened the issue, both PRs #8881 and #8886 were linked, and the reporter self-assigned with a comment."
+        },
+        "8859": {
+          "status": "resolved",
+          "where_it_stands": "The issue is closed and linked PR #8865, which fixes the concatenation cache fingerprints for different axes, has been merged.",
+          "what_changed": "The issue was opened, PR #8865 was linked and merged, and the reporter commented \"#self-assign\"."
+        },
+        "7290": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Issue open since 2024 with reports of num_proc>1 being slower than num_proc=1. Linked PR #8880 is open and awaiting review.",
+          "what_changed": "A contributor (hzmsh) explained the cause: in-memory shards pickle the full Arrow parent table for each worker. They opened PR #8880 with the fix and self-assigned the issue."
+        },
+        "8888": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Open PR #8889 proposes a fix for fixed-shape ArrayXD pandas round trips, keeping row nulls and integer payloads. It is waiting for maintainer review, and the issue remains open.",
+          "what_changed": "The reporter opened the issue, and @choksi2212 said they would work on a fix and then opened PR #8889. The PR notes that pd.concat still fails the same way on main and was deferred to #8867."
+        },
+        "8743": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Three linked pull requests are open: #8744 and #8775 both fix the writer cleanup, and #8885 offers an alternative. The reporter's fix is still awaiting maintainer review or merge.",
+          "what_changed": "PR #8885 (a context-manager alternative) was opened. The contributor who self-assigned the issue withdrew, asked a maintainer to remove the assignment, and said they will not submit duplicate work."
+        },
+        "8799": {
+          "status": "resolved",
+          "where_it_stands": "The issue is closed. Linked PR #8800, which makes concatenate_datasets keep the split_dataset_by_node split, was merged.",
+          "what_changed": "No new comments."
+        },
+        "8863": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Bug report: after `shard()`, `decode(False)` still yields decoded images because `shard_data_sources` drops `decoding_pool`. Open PR #8864 aims to keep threaded decoding reconfigurable after `shard`, and no maintainer has reviewed it yet.",
+          "what_changed": "The issue was opened and PR #8864 was linked, both inside the window. No comments have been added."
+        },
+        "8242": {
+          "status": "needs_triage",
+          "where_it_stands": "No maintainer has replied and no pull request is linked. A non-maintainer user says the report belongs in the axolotl repo, that the diffusion plugin's sample generation causes the hang, and suggests setting `generate_samples: false`.",
+          "what_changed": "No new comments."
+        },
+        "7222": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The bug is still open. Open PR #8676 is linked, and a maintainer has agreed that this case should get the chunksize hint in the error message.",
+          "what_changed": "PR #8676 was linked. hzmsh proposed a single-pass fix and offered to extend the hint to this case, and lhoestq replied that the case should be included in the hint."
+        },
+        "8849": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Bug report: on main, cast and cast_column are ignored for streamed datasets decoded in threads, so audio is not resampled and Image(decode=False) still yields PIL images. Linked PR #8850 is open and awaits review.",
+          "what_changed": "The issue was reported and PR #8850 (applying cast and cast_column below threaded decoding) was opened. No maintainer has commented yet."
+        },
+        "5225": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The issue is still open, and linked PR #5339 is closed with no open pull request. A user claimed the work twice in 2026, but the thread doesn't show a maintainer reply. The thread doesn't say whether the Video feature already exists in current releases.",
+          "what_changed": "sharmis-tp asked whether the Video feature already ships and whether the issue can be closed, and offered to verify it against the listed requirements. No maintainer has responded."
+        },
+        "8713": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Two linked pull requests are open (#8715 and #8794) and both target this bug. A contributor also asked on 2026-10-08 whether the issue was still available to work on.",
+          "what_changed": "No new comments."
+        },
+        "8719": {
+          "status": "fix_in_progress",
+          "where_it_stands": "Linked PR #8723 is closed without merging, so no fix is open. A contributor (@felipebridge) self-assigned the issue on 2026-10-01, and no maintainer has replied. The date the PR was closed is not shown.",
+          "what_changed": "No new comments."
+        },
+        "8709": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Issue is open and the reporter's fix is no longer in play. PR #8710 was closed without merging, and open PR #8848 now carries the change and waits for maintainer review.",
+          "what_changed": "A new commenter confirmed the bug on current main and opened PR #8848, which reads fields by group name and adds tests. PR #8710 was closed without merging on 2026-10-18."
+        },
+        "8681": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The issue is open with no comments. PR #8688 (cast large_string and string_view storage in ClassLabel) is open and waiting for review or merge. PR #8682 was merged but fixes Json.cast_storage, not this ClassLabel bug.",
+          "what_changed": "PR #8833 was opened to cast dictionary-encoded storage, such as pandas Categorical columns, in ClassLabel."
+        },
+        "8617": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Pull request #8805 is open and awaiting review, and it handles SplitInfo objects in SplitDict.from_split_dict. Earlier pull request #8619 is closed, and the thread doesn't say whether it was merged.",
+          "what_changed": "No new comments."
+        },
+        "6948": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Issue is open with linked pull request #8847 (open), which hides GPUs before spawning TensorFlow data workers. The PR is waiting for maintainer review or merge.",
+          "what_changed": "PR #8847 was linked and opened, and @jinchuntan self-assigned the issue."
+        },
+        "7088": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The issue is open, and linked PR #8845 (copying existing tensors without the PyTorch warning) is open and awaiting review or merge.",
+          "what_changed": "@jinchuntan (CONTRIBUTOR) commented \"#self-assign\" on 2026-10-18, and PR #8845 was linked in this window."
+        },
+        "8830": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Open pull request #8833 fixes the Categorical (dictionary-encoded) case and is waiting for review or merge. No maintainer has commented on the issue.",
+          "what_changed": "The reporter commented that #8681 reports the related plain-string (large_string) failure, which #8688 fixes. They noted both fixes touch adjacent lines of ClassLabel.cast_storage."
+        },
+        "7390": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "Pull request #8846 (restoring packaged type information and public re-exports) is open and awaiting review or merge. The issue itself is still open.",
+          "what_changed": "PR #8846 was linked, and contributor @jinchuntan self-assigned the issue."
+        },
+        "6865": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The issue reports that torchvision Resize uses bilinear interpolation on segmentation masks, producing wrong boundary colors in the semantic segmentation guide. An open pull request (#8843) addresses mask resizing and is waiting for review or merge.",
+          "what_changed": "A contributor, @jinchuntan, self-assigned the issue, and PR #8843 was opened to fix mask resizing in the guide."
+        },
+        "7444": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The issue is open. Linked PR #8844 (\"Warn once when resuming a shuffled dataset\") is open and awaiting review or merge.",
+          "what_changed": "PR #8844 was linked, and @jinchuntan (CONTRIBUTOR) commented \"#self-assign\"."
+        },
+        "6819": {
+          "status": "waiting_on_maintainer",
+          "where_it_stands": "The issue is open and linked PR #8842, which adds the config name to the error when no data files are found, is open and awaiting review. The reporter's original question is about improving the error message, and no maintainer has commented.",
+          "what_changed": "PR #8842 was opened and linked. Contributor @jinchuntan said they reproduced the problem on main, will add the config name to the error, and self-assigned the issue twice."
+        }
+      },
+      "themes": [
+        {
+          "name": "concatenate_datasets behavior",
+          "description": "Bugs where concatenate_datasets mishandles caches, splits, or axis=1 on IterableDatasets.",
+          "issues": [
+            8859,
+            8799,
+            8719
+          ]
+        },
+        {
+          "name": "Streaming decode and cast",
+          "description": "On streamed datasets, cast, cast_column, and decode settings are ignored or lost after decoding in threads or after shard().",
+          "issues": [
+            8863,
+            8849
+          ]
+        },
+        {
+          "name": "Arrow type casting",
+          "description": "Failures or incorrect conversions when casting Arrow storage types to ClassLabel, string/null, or inferred Json columns.",
+          "issues": [
+            7222,
+            8713,
+            8681,
+            8830
+          ]
+        },
+        {
+          "name": "Parquet and pandas round trips",
+          "description": "Data loss or resource leaks when exporting or round-tripping datasets through Parquet and pandas.",
+          "issues": [
+            8888,
+            8743
+          ]
+        },
+        {
+          "name": "Warnings and error messages",
+          "description": "Noisy warnings and unhelpful error messages that should be reduced or made more informative.",
+          "issues": [
+            7088,
+            7444,
+            6819
+          ]
+        }
+      ],
+      "themes_dropped": [],
+      "coverage": 0.6086956521739131,
+      "cost_usd": 0.0101179,
+      "calls": 24
+    }
+  ]
+}

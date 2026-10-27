@@ -1,0 +1,20 @@
+General thought process:
+- I started by thinking about common problems that arise when maintaining a busy open-source project.
+- From a list of 16, I selected a few problems that resonate with my experience, benefit from an LLM, and fit within the budget.
+- I then scoped the tool to three questions: what changed, what stage each issue is in, and which themes the issues belong to.
+- I wrote a plan document with three sections: problem statement and deliverables, architecture and codebase layout, and success metrics.
+- I implemented the code file by file, testing each feature and function as I went.
+- Once the codebase was complete, I ran evals to check that it worked, comparing the model's labels for the issues with my manual labels.
+- The first eval scored 14 percent, exposing a definition gap (an open PR means it's the maintainer's move). Fixing that and fetching linked PRs raised the score to 94 percent.
+- After the evals, I ran the tool end-to-end on a repo 3 times to make sure it worked as intended each time.
+
+Deliberately did NOT build:
+- LangGraph for agent-owned state: not needed for a fixed-sequence pipeline.
+- Routing and assigning tasks: the tool is designed for a single maintainer, and adding this would require team ownership data.
+- Handling PRs: the tool triages issues only; PRs need a different workflow that checks CI status, reviews, etc.
+- Write tools: the tool is a read-only CLI and leaves all actions to the maintainer.
+- Duplicate issue detection: the tool only pulls issues that changed since the last run. Checking for duplicates would require storing older issues.
+
+One thing I'd do differently with more time:
+- Have the tool tell noise from signal. Noise could be a simple question about the code, an issue that belongs in another repo, spam, or an incomplete report.
+- I'd add a report section that lists such noise and suggests actions for it.
